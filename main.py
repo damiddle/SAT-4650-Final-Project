@@ -14,7 +14,7 @@ class CurrentUser:
 
 
 # Log in sequence, creates current user class
-valid_login = False
+valid_login = Fals
 
 while not valid_login:
     username = input("Username: ")
