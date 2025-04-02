@@ -12,10 +12,6 @@ def generate_encryption_key():
         file.write(key)
 
 
-def verify_login(user, password):
-    pass
-
-
 def encrypt_password(password):
     """Encrypts a password
 

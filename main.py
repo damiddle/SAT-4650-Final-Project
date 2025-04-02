@@ -1,12 +1,11 @@
 import db_connection
-import encryption
-import inventory
-import users
-import audit_log
+import api.inventory as inventory
+import api.users as users
+import api.audit_log as audit_log
+import api.alerts as alerts
 
 
 class CurrentUser:
-
     def __init__(self, username, role, email):
         self.username = username
         self.role = role
@@ -14,52 +13,23 @@ class CurrentUser:
 
 
 # Log in sequence, creates current user class
-valid_login = Fals
+valid_login = False
 
 while not valid_login:
     username = input("Username: ")
     password = input("Password: ")
 
-    connection = db_connection.connect_to_database()
-    cursor = connection.cursor()
+    current_user = users.login(username, password)
 
-    query = "SELECT password_encrypted FROM users WHERE username = %s"
-    query_list = [username]
-    cursor.execute(query, query_list)
+    if current_user is not False or None:
+        valid_login = True
 
-    ref_pass = cursor.fetchone()
-
-    # Protects against user not exist
-    if not ref_pass == None:
-        if encryption.decrypt_password(ref_pass[0]) == password:
-            print("Successfully logged in!")
-
-            current_user = users.get_user(username)[0]
-            print(current_user)
-            current_user = CurrentUser(
-                current_user[1], current_user[3], current_user[4]
-            )
-
-            print("Welcome " + current_user.username)
-            print("Permission level: " + current_user.role)
-
-            audit_log.update_audit_log(
-                current_user, current_user.username, "LOGIN", "Logged in"
-            )
-
-            valid_login = True
-
-        else:
-            print("Login not valid, try again")
-    else:
-        print("Login not valid, try again")
 
 # Main use sequence
 menu_context = "main"
 
 while not menu_context == "exit":
     if menu_context == "main":
-
         # Admin access
         if current_user.role == "Admin":
             requested_menu_action = input(
@@ -135,7 +105,6 @@ while not menu_context == "exit":
 
     # Inventory functions
     elif menu_context == "inventory":
-
         # Admin access functions
         if current_user.role == "Admin":
             requested_menu_action = input(
@@ -155,8 +124,9 @@ while not menu_context == "exit":
             # Update item
             elif requested_menu_action == "3":
                 item_name = input("Enter item name: ")
+                inventory.show_item(current_user, item_name)
                 action = input(
-                    "increase, decrease, update quantity, update expiration, update description, or update minimum threshold\n"
+                    "Select increase, decrease, update quantity, update expiration, update description, or update minimum threshold: "
                 )
 
                 inventory.update_inventory_item(current_user, item_name, action)
@@ -214,8 +184,9 @@ while not menu_context == "exit":
             # Update item
             elif requested_menu_action == "3":
                 item_name = input("Enter item name: ")
+                inventory.show_item(current_user, item_name)
                 action = input(
-                    "increase, decrease, update quantity, update expiration, update description, or update minimum threshold\n"
+                    "Select increase, decrease, update quantity, update expiration, update description, or update minimum threshold: "
                 )
 
                 inventory.update_inventory_item(current_user, item_name, action)
@@ -328,9 +299,52 @@ while not menu_context == "exit":
             print("You do not have permission for these functions")
             print("User permissions: " + current_user.role)
 
-    # Alert functions
+    # Alert functions, all users
     elif menu_context == "alerts":
-        pass
+        requested_menu_action = input(
+            "[1] Show expired inventory\n[2] Show low inventory\n[3] Exit to main menu\n"
+        )
+
+        # View expired items
+        if requested_menu_action == "1":
+            alerts.search_for_expiration(current_user)
+
+        # View low quantities
+        elif requested_menu_action == "2":
+            alerts.search_for_low_quantity(current_user)
+
+        # Exit to main menu
+        elif requested_menu_action == "3":
+            menu_context = "main"
+
+        else:
+            print("Action not valid")
+
+    # Account management functions, all users
+    # TODO changing attributes does not update current_user
+    elif menu_context == "account":
+        requested_menu_action = input(
+            "[1] Change username\n[2] Change password\n[3] Change email\n[4] Exit to main menu\n"
+        )
+
+        # Change username
+        if requested_menu_action == "1":
+            users.change_user_username(current_user)
+
+        # Change password
+        elif requested_menu_action == "2":
+            users.change_user_password(current_user)
+
+        # Change email
+        elif requested_menu_action == "3":
+            users.change_user_email(current_user)
+
+        # Exit to main menu
+        elif requested_menu_action == "4":
+            menu_context = "main"
+
+        else:
+            print("Action not valid")
 
     else:
         print("Something went wrong")

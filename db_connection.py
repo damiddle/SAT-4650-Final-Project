@@ -21,7 +21,7 @@ def connect_to_database():
 
             return connection
 
-    except mysql.connector.Error as e:
+    except mysql.connector.Error:
         print("Error connecting to EMS database")
 
         # Create database if not exist

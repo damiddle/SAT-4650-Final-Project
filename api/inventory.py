@@ -1,6 +1,5 @@
 import db_connection
-import users
-import audit_log
+import api.audit_log as audit_log
 
 
 def add_inventory_item(
