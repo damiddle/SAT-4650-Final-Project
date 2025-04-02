@@ -1,4 +1,3 @@
-import db_connection
 import api.inventory as inventory
 import api.users as users
 import api.audit_log as audit_log
@@ -113,7 +112,12 @@ while not menu_context == "exit":
 
             # Show all inventory
             if requested_menu_action == "1":
-                db_connection.show_table("inventory")
+                table_contents = inventory.show_all_inventory(current_user)
+
+                for row in table_contents:
+                    print(
+                        f"Item name: {row[0]} | Category: {row[1]} | Description: {row[2]} | Quantity: {row[3]} | Expiration date: {row[4]} | Minimum threshold: {row[5]} | Last updated: {row[6]}"
+                    )
 
             # Show item
             elif requested_menu_action == "2":
@@ -123,13 +127,39 @@ while not menu_context == "exit":
 
             # Update item
             elif requested_menu_action == "3":
-                item_name = input("Enter item name: ")
-                inventory.show_item(current_user, item_name)
-                action = input(
-                    "Select increase, decrease, update quantity, update expiration, update description, or update minimum threshold: "
+                item_name = input("Enter item to update: ")
+                requested_menu_action = input(
+                    "Action:\n[1] Increase quantity\n[2] Decrease quantity\n[3] Set quantity\n[4] Set expiration date\n[5] Set minimum threshold\n[6] Set description\n[7] Exit to inventory\n"
                 )
 
-                inventory.update_inventory_item(current_user, item_name, action)
+                if requested_menu_action == "1":
+                    quantity = int(input("Enter quantity to increase by: "))
+                    inventory.increase_item(current_user, item_name, quantity)
+
+                elif requested_menu_action == "2":
+                    quantity = int(input("Enter quantity to decrease by: "))
+                    inventory.decrease_item(current_user, item_name, quantity)
+
+                elif requested_menu_action == "3":
+                    quantity = int(input("Enter quantity to set: "))
+                    inventory.set_quantity(current_user, item_name, quantity)
+
+                elif requested_menu_action == "4":
+                    new_expiration = input("Enter new expiration date: ")
+                    inventory.set_expiration(current_user, item_name, new_expiration)
+
+                elif requested_menu_action == "5":
+                    new_threshold = int(input("Enter new minimum alert threshold: "))
+                    inventory.set_minimum_threshold(
+                        current_user, item_name, new_threshold
+                    )
+
+                elif requested_menu_action == "6":
+                    new_description = input("Enter new description: ")
+                    inventory.set_description(current_user, item_name, new_description)
+
+                else:
+                    print("Action not valid")
 
             # Add new item
             elif requested_menu_action == "4":
@@ -173,7 +203,12 @@ while not menu_context == "exit":
 
             # Shows all inventory
             if requested_menu_action == "1":
-                db_connection.show_table("inventory")
+                table_contents = inventory.show_all_inventory(current_user)
+
+                for row in table_contents:
+                    print(
+                        f"Item name: {row[0]} | Category: {row[1]} | Description: {row[2]} | Quantity: {row[3]} | Expiration date: {row[4]} | Minimum threshold: {row[5]} | Last updated: {row[6]}"
+                    )
 
             # Show item
             elif requested_menu_action == "2":
@@ -183,13 +218,39 @@ while not menu_context == "exit":
 
             # Update item
             elif requested_menu_action == "3":
-                item_name = input("Enter item name: ")
-                inventory.show_item(current_user, item_name)
-                action = input(
-                    "Select increase, decrease, update quantity, update expiration, update description, or update minimum threshold: "
+                item_name = input("Enter item to update: ")
+                requested_menu_action = input(
+                    "Action:\n[1] Increase quantity\n[2] Decrease quantity\n[3] Set quantity\n[4] Set expiration date\n[5] Set minimum threshold\n[6] Set description\n[7] Exit to inventory\n"
                 )
 
-                inventory.update_inventory_item(current_user, item_name, action)
+                if requested_menu_action == "1":
+                    quantity = int(input("Enter quantity to increase by: "))
+                    inventory.increase_item(current_user, item_name, quantity)
+
+                elif requested_menu_action == "2":
+                    quantity = int(input("Enter quantity to decrease by: "))
+                    inventory.decrease_item(current_user, item_name, quantity)
+
+                elif requested_menu_action == "3":
+                    quantity = int(input("Enter quantity to set: "))
+                    inventory.set_quantity(current_user, item_name, quantity)
+
+                elif requested_menu_action == "4":
+                    new_expiration = input("Enter new expiration date: ")
+                    inventory.set_expiration(current_user, item_name, new_expiration)
+
+                elif requested_menu_action == "5":
+                    new_threshold = int(input("Enter new minimum alert threshold: "))
+                    inventory.set_minimum_threshold(
+                        current_user, item_name, new_threshold
+                    )
+
+                elif requested_menu_action == "6":
+                    new_description = input("Enter new description: ")
+                    inventory.set_description(current_user, item_name, new_description)
+
+                else:
+                    print("Action not valid")
 
             # Exit to main menu
             elif requested_menu_action == "4":
@@ -206,7 +267,12 @@ while not menu_context == "exit":
 
             # Show all inventory
             if requested_menu_action == "1":
-                db_connection.show_table("inventory")
+                table_contents = inventory.show_all_inventory(current_user)
+
+                for row in table_contents:
+                    print(
+                        f"Item name: {row[0]} | Category: {row[1]} | Description: {row[2]} | Quantity: {row[3]} | Expiration date: {row[4]} | Minimum threshold: {row[5]} | Last updated: {row[6]}"
+                    )
 
             # Show item
             elif requested_menu_action == "2":
@@ -223,20 +289,23 @@ while not menu_context == "exit":
 
         else:
             print("Something went wrong, permission level not valid")
-            print("User permissions: " + current_user.role)
 
     # User management functions, admin only
     elif menu_context == "users":
         if current_user.role == "Admin":
             requested_menu_action = input(
-                "Action:\n[1] View user\n[2] Change user role\n[3] Add user\n[4] Delete user\n[5] Exit to main menu\n"
+                "Action:\n[1] View user\n[2] Change user role\n[3] Add user\n[4] Delete user\n[5] View all users\n[6] Exit to main menu\n"
             )
 
             # View user
             if requested_menu_action == "1":
                 user = input("Enter user to view: ")
 
-                print(users.view_user(current_user, user))
+                try:
+                    print(users.view_user(current_user, user))
+
+                except Exception as e:
+                    print(f"Database error: {e}")
 
             # Change user role
             elif requested_menu_action == "2":
@@ -260,8 +329,17 @@ while not menu_context == "exit":
 
                 users.delete_user(current_user, user)
 
-            # Exit to main menu
+            # View all registered users
             elif requested_menu_action == "5":
+                table_contents = users.show_all_users(current_user)
+
+                for row in table_contents:
+                    print(
+                        f"Username: {row[0]} | Role: {row[1]} | Email: {row[2]} | Created at: {row[3]} | Last updated at: {row[4]}"
+                    )
+
+            # Exit to main menu
+            elif requested_menu_action == "6":
                 menu_context = "main"
 
             else:
@@ -282,11 +360,18 @@ while not menu_context == "exit":
             if requested_menu_action == "1":
                 number_of_entries = input("Pull last ___ logs: ")
 
-                audit_log.pull_audit_log(current_user, number_of_entries)
+                log = audit_log.pull_audit_log(current_user, number_of_entries)
+
+                for entry in log:
+                    print(
+                        f"Log ID: {entry[0]} | User: {entry[1]} | Updated object: {entry[2]} | Action: {entry[3]} | Details: {entry[5]} | Time: {entry[4]}"
+                    )
 
             # Exports audit log to .txt
             elif requested_menu_action == "2":
                 audit_log.export_to_txt(current_user)
+
+                print("Audit log has been exported as .txt file")
 
             # Exit to main menu
             elif requested_menu_action == "3":
@@ -297,7 +382,6 @@ while not menu_context == "exit":
 
         else:
             print("You do not have permission for these functions")
-            print("User permissions: " + current_user.role)
 
     # Alert functions, all users
     elif menu_context == "alerts":
@@ -307,11 +391,11 @@ while not menu_context == "exit":
 
         # View expired items
         if requested_menu_action == "1":
-            alerts.search_for_expiration(current_user)
+            alerts.search_for_expiration()
 
         # View low quantities
         elif requested_menu_action == "2":
-            alerts.search_for_low_quantity(current_user)
+            alerts.search_for_low_quantity()
 
         # Exit to main menu
         elif requested_menu_action == "3":

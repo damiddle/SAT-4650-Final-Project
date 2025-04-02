@@ -1,3 +1,8 @@
+import os
+import sys
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 import db_connection
 import utils.encryption as encryption
 import api.audit_log as audit_log
@@ -10,95 +15,107 @@ class CurrentUser:
         self.email = email
 
 
-def add_user(user, username, password, role, email):
+def add_user(current_user, target_user, password, role, email):
     """Registers a new user, admin use only
 
     Args:
-        user (CurrentUser): Current user object
-        username (String): Username of the user being registered
+        current_user (CurrentUser): Current user object
+        target_user (String): Username of the user being registered
         password (String): Unencrypted password
         role (String): Different permission levels, "Admin", "User", or "Viewer"
         email (String): Email address of user being registered
     """
 
-    connection = db_connection.connect_to_database()
-    cursor = connection.cursor()
+    if current_user.role == "Admin":
+        try:
+            user_name_count = db_connection.execute_query(
+                "SELECT COUNT(*) AS user_rows FROM users WHERE username = %s",
+                [target_user],
+                False,
+            )
+            user_name_count = user_name_count[0][0]
 
-    if user.role == "Admin":
-        query = "SELECT COUNT(*) AS user_rows FROM users WHERE username = %s"
-        query_list = [username]
-        cursor.execute(query, query_list)
-        user_name_count = cursor.fetchall()
-        user_name_count = user_name_count[0][0]
+            if user_name_count == 0:
+                db_connection.execute_query(
+                    "INSERT INTO users (username, role, email, password_encrypted) VALUES(%s, %s, %s, %s)",
+                    [
+                        target_user,
+                        role,
+                        email,
+                        encryption.encrypt_data(password),
+                    ],
+                )
+                print(target_user + " added to user database")
 
-        if user_name_count == 0:
-            query = "INSERT INTO users (username, role, email, password_encrypted) VALUES(%s, %s, %s, %s)"
-            query_list = [username, role, email, encryption.encrypt_password(password)]
+            else:
+                print(
+                    "User "
+                    + target_user
+                    + " already exists, please update user instead"
+                )
 
-            cursor.execute(query, query_list)
-            print(username + " added to user database")
+            audit_log.update_audit_log(
+                current_user, target_user, "ADD", "New user added"
+            )
 
-            connection.commit()
-
-        else:
-            print("User " + username + " already exists, please update user instead")
-
-        cursor.close()
-
-        audit_log.update_audit_log(user, username, "ADD", "New user added")
+        except Exception as e:
+            print(f"Database error: {e}")
 
     else:
         print("You do not have access to this function")
 
 
-def change_user_role(user, username, new_role):
+def change_user_role(current_user, target_user, new_role):
     """Edit user role, admin use only
 
     Args:
-        user (CurrentUser): Current user object
-        username (String): Username of the user being edited
+        current_user (CurrentUser): Current user object
+        target_user (String): Username of the user being edited
         new_role (String): New role, "Admin", "User", or "Viewer"
     """
 
-    if user.role == "Admin":
-        connection = db_connection.connect_to_database()
-        cursor = connection.cursor()
+    if current_user.role == "Admin":
+        try:
+            if new_role not in db_connection.VALID_USER_ROLES:
+                db_connection.execute_query(
+                    "UPDATE users SET role = %s WHERE username = %s",
+                    [new_role, target_user],
+                )
+                print("Updated role to " + new_role)
+                audit_log.update_audit_log(
+                    current_user, target_user, "UPDATE", "Set user role to " + new_role
+                )
 
-        query = "UPDATE users SET role = %s WHERE username = %s"
-        query_list = [new_role, username]
-        cursor.execute(query, query_list)
-        print("Updated role to " + new_role)
-        audit_log.update_audit_log(
-            user, username, "UPDATE", "Set user role to " + new_role
-        )
+            else:
+                print(new_role + " is not a valid role")
 
-        connection.commit()
-        cursor.close()
+        except Exception as e:
+            print(f"Database error: {e}")
 
     else:
-        print("Role must be 'Admin', 'User', or 'Viewer'")
+        print("You do not have access to this function")
 
 
-def delete_user(user, username):
+def delete_user(current_user, target_user):
     """Deletes user, admin use only
 
     Args:
-        user (CurrentUser): Current user object
-        username (String): User to be deleted
+        current_user (CurrentUser): Current user object
+        target_user (String): User to be deleted
     """
 
-    if user.role == "Admin":
-        connection = db_connection.connect_to_database()
-        cursor = connection.cursor()
+    if current_user.role == "Admin":
+        try:
+            db_connection.execute_query(
+                "DELETE FROM users WHERE username = %s", [target_user]
+            )
+            print("User deleted")
 
-        query = "DELETE FROM users WHERE username = %s"
-        query_list = [username]
-        cursor.execute(query, query_list)
-        print("User deleted")
-        audit_log.update_audit_log(user, username, "DELETE", "Deleted user")
-
-        connection.commit()
-        cursor.close()
+            audit_log.update_audit_log(
+                current_user, target_user, "DELETE", "Deleted user"
+            )
+        except Exception as e:
+            print(f"Database error: {e}")
 
     else:
         print("You do not have access to this function")
@@ -114,119 +131,129 @@ def login(username, password):
     Returns:
         CurrentUser or boolean: Returns a CurrentUser object if login is valid, or False if it is not
     """
+    try:
+        ref_pass = db_connection.execute_query(
+            "SELECT password_encrypted FROM users WHERE username = %s",
+            [username],
+            False,
+        )
 
-    connection = db_connection.connect_to_database()
-    cursor = connection.cursor()
+        if ref_pass is not None:
+            if encryption.decrypt_data(ref_pass[0][0]) == password:
+                print("Successfully logged in!")
 
-    query = "SELECT password_encrypted FROM users WHERE username = %s"
-    query_list = [username]
-    cursor.execute(query, query_list)
+                current_user = get_user(username)[0]
 
-    ref_pass = cursor.fetchone()
+                current_user = CurrentUser(
+                    current_user[1], current_user[3], current_user[4]
+                )
 
-    if ref_pass is not None:
-        if encryption.decrypt_password(ref_pass[0]) == password:
-            print("Successfully logged in!")
+                print("Welcome " + current_user.username)
+                print("Permission level: " + current_user.role)
 
-            current_user = get_user(username)[0]
+                audit_log.update_audit_log(
+                    current_user, current_user.username, "LOGIN", "Logged in"
+                )
 
-            current_user = CurrentUser(
-                current_user[1], current_user[3], current_user[4]
-            )
+                return current_user
 
-            print("Welcome " + current_user.username)
-            print("Permission level: " + current_user.role)
+            else:
+                print("Login not valid, try again")
 
-            audit_log.update_audit_log(
-                current_user, current_user.username, "LOGIN", "Logged in"
-            )
-
-            return current_user
+                return False
 
         else:
             print("Login not valid, try again")
 
             return False
 
-    else:
-        print("Login not valid, try again")
+    except Exception as e:
+        print(f"Database error: {e}")
 
         return False
 
 
-def get_user(user):
-    """Retrieves user for login, after password verification
+def get_user(username):
+    """Retrieves user for login to form the CurrentUser object after password verification
 
     Args:
-        user (String): Username
+        username (String): Username
 
     Returns:
         List: User properties
     """
 
-    connection = db_connection.connect_to_database()
-    cursor = connection.cursor()
-    query = "SELECT * FROM users WHERE username = %s"
-    query_list = [user]
+    try:
+        user_list = db_connection.execute_query(
+            "SELECT * FROM users WHERE username = %s", [username], False
+        )
 
-    cursor.execute(query, query_list)
-    user_list = cursor.fetchall()
+        return user_list
 
-    return user_list
+    except Exception as e:
+        print(f"Database error: {e}")
+
+        return
 
 
-def view_user(user, username):
+def view_user(current_user, target_user):
     """Retrieves user view, admin use only
 
     Args:
-        user (CurrentUser): Current user object
-        username (String): Username to view
+        current_user (CurrentUser): Current user object
+        target_user (String): Username to view
 
     Returns:
         List: User properties
     """
 
-    if user.role == "Admin":
-        connection = db_connection.connect_to_database()
-        cursor = connection.cursor()
-        query = "SELECT * FROM users WHERE username = %s"
-        query_list = [username]
+    if current_user.role == "Admin":
+        try:
+            user_list = db_connection.execute_query(
+                "SELECT * FROM users WHERE username = %s", [target_user], False
+            )
 
-        cursor.execute(query, query_list)
-        user_list = cursor.fetchall()
+            return user_list
 
-        return user_list
+        except Exception as e:
+            print(f"Database error: {e}")
+
+            return
 
     else:
         print("You don't have access to this function")
 
+        return
 
-def change_user_password(user):
+
+def change_user_password(current_user):
     """Updates a users password
 
     Args:
-        user (CurrentUser): Current user object
+        current_user (CurrentUser): Current user object
     """
 
-    connection = db_connection.connect_to_database()
-    cursor = connection.cursor()
-
     current_password = input("Verify your current password: ")
-
-    if login(user.username, current_password) is not None or False:
+    login_check = login(current_user.username, current_password)
+    if (login_check is not None) and (login_check is not False):
         new_password = input("Please enter your new password: ")
 
         if new_password == input("Reenter your password: "):
-            query = "UPDATE users SET password_encrypted = %s WHERE username = %s"
-            query_list = [encryption.encrypt_password(new_password), user.username]
+            try:
+                db_connection.execute_query(
+                    "UPDATE users SET password_encrypted = %s WHERE username = %s",
+                    [
+                        encryption.encrypt_data(new_password),
+                        current_user.username,
+                    ],
+                )
+                print("Password has been updated")
+                audit_log.update_audit_log(
+                    current_user, current_user.username, "UPDATE", "Changed password"
+                )
 
-            cursor.execute(query, query_list)
-            print("Password has been updated")
-            audit_log.update_audit_log(
-                user, user.username, "UPDATE", "Changed password to " + new_password
-            )
-            connection.commit()
-            cursor.close()
+            except Exception as e:
+                print(f"Database error: {e}")
 
         else:
             print("Passwords did not match")
@@ -235,31 +262,35 @@ def change_user_password(user):
         print("Password was not valid")
 
 
-def change_user_username(user):
+def change_user_username(current_user):
     """Changes a users username
 
     Args:
-        user (CurrentUser): Current user object
+        current_user (CurrentUser): Current user object
     """
-    connection = db_connection.connect_to_database()
-    cursor = connection.cursor()
 
     current_password = input("Verify your current password: ")
+    login_check = login(current_user.username, current_password)
 
-    if login(user.username, current_password) is not None or False:
+    if (login_check is not None) and (login_check is not False):
         new_username = input("Please enter your new username: ")
 
         if new_username == input("Reenter your username: "):
-            query = "UPDATE users SET username = %s WHERE username = %s"
-            query_list = [new_username, user.username]
+            try:
+                db_connection.execute_query(
+                    "UPDATE users SET username = %s WHERE username = %s",
+                    [new_username, current_user.username],
+                )
+                print("Username has been updated")
+                audit_log.update_audit_log(
+                    current_user,
+                    current_user.username,
+                    "UPDATE",
+                    "Changed username to " + new_username,
+                )
 
-            cursor.execute(query, query_list)
-            print("Username has been updated")
-            audit_log.update_audit_log(
-                user, user.username, "UPDATE", "Changed username to " + new_username
-            )
-            connection.commit()
-            cursor.close()
+            except Exception as e:
+                print(f"Database error: {e}")
 
         else:
             print("Usernames did not match")
@@ -268,34 +299,53 @@ def change_user_username(user):
         print("Password was not valid")
 
 
-def change_user_email(user):
+def change_user_email(current_user):
     """Changes a users email
 
     Args:
-        user (CurrentUser): Current user object
+        current_user (CurrentUser): Current user object
     """
-    connection = db_connection.connect_to_database()
-    cursor = connection.cursor()
 
     current_password = input("Verify your current password: ")
+    login_check = login(current_user.username, current_password)
 
-    if login(user.username, current_password) is not None or False:
+    if (login_check is not None) and (login_check is not False):
         new_email = input("Please enter your new email: ")
 
         if new_email == input("Reenter your email: "):
-            query = "UPDATE users SET email = %s WHERE username = %s"
-            query_list = [new_email, user.username]
+            try:
+                db_connection.execute_query(
+                    "UPDATE users SET email = %s WHERE username = %s",
+                    [new_email, current_user.username],
+                )
+                print("Email has been updated")
+                audit_log.update_audit_log(
+                    current_user,
+                    current_user.username,
+                    "UPDATE",
+                    "Changed email to " + new_email,
+                )
 
-            cursor.execute(query, query_list)
-            print("Email has been updated")
-            audit_log.update_audit_log(
-                user, user.username, "UPDATE", "Changed username to " + new_email
-            )
-            connection.commit()
-            cursor.close()
+            except Exception as e:
+                print(f"Database error: {e}")
 
         else:
             print("Emails did not match")
 
     else:
         print("Password was not valid")
+
+
+def show_all_users(current_user):
+    if current_user.role == "Admin":
+        try:
+            table_contents = db_connection.execute_query(
+                "SELECT username, role, email, created_at, updated_at FROM users",
+                None,
+                False,
+            )
+
+            return table_contents
+
+        except Exception as e:
+            print(f"Database error: {e}")
