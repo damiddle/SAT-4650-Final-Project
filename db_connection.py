@@ -10,6 +10,7 @@ DB_HOST = os.getenv("DB_HOST")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_NAME = os.getenv("DB_NAME")
+CONNECTION_POOL_SIZE = os.getenv("CONNECTION_POOL_SIZE")
 VALID_USER_ROLES = ast.literal_eval(os.getenv("VALID_USER_ROLES"))
 
 
@@ -20,7 +21,7 @@ def create_connection_pool():
     try:
         pool = pooling.MySQLConnectionPool(
             pool_name="db_pool",
-            pool_size=5,
+            pool_size=int(CONNECTION_POOL_SIZE),
             pool_reset_session=True,
             host=DB_HOST,
             user=DB_USER,
@@ -55,28 +56,24 @@ def get_connection():
 
 def execute_query(query, params=None, commit=True):
     try:
-        connection = get_connection()
-        cursor = connection.cursor()
-        cursor.execute(query, params)
-
-        # If the query is a SELECT, fetch results; otherwise, commit changes.
-        if query.strip().upper().startswith("SELECT"):
-            result = cursor.fetchall()
-        else:
-            connection.commit()
-            result = cursor.rowcount
-        return result
+        with get_connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(query, params)
+                # If the query is a SELECT, fetch results; otherwise, commit changes.
+                if query.strip().upper().startswith("SELECT"):
+                    result = cursor.fetchall()
+                else:
+                    connection.commit()
+                    result = cursor.rowcount
+                return result
     except Error as err:
         print(f"Database error during query execution: {err}")
         return None
-    finally:
-        if cursor:
-            cursor.close()
-        if connection and connection.is_connected():
-            connection.close()
 
 
 def initialize_database():
+    connection = None
+    cursor = None
     try:
         # Connect without specifying a database to create it if needed.
         connection = mysql.connector.connect(

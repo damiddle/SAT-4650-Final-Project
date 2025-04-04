@@ -2,8 +2,9 @@ from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 import os
 
-load_dotenv()
 ENV_FILE_PATH = ".env"
+load_dotenv(ENV_FILE_PATH)
+
 ACTIVE_KEY_VAR_NAME = "ACTIVE_ENCRYPTION_KEY"
 OLD_KEY_VAR_NAME = "OLD_ENCRYPTION_KEY"
 

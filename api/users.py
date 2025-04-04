@@ -139,6 +139,7 @@ def login(username, password):
             raise TypeError("Username must be non-empty string")
         if not validators.is_non_empty_string(password):
             raise TypeError("Password must be non-empty string")
+
         user_details = db_connection.execute_query(
             "SELECT password_encrypted FROM users WHERE username = %s",
             [username],

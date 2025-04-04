@@ -9,6 +9,22 @@ import utils.validators as validators
 from mysql.connector import Error as MySQLError
 
 
+# Helper function to abstract common update patterns.
+def perform_inventory_update(
+    current_user, item_name, query, params, success_message, audit_message
+):
+    try:
+        result = db_connection.execute_query(query, params)
+        if result is None:
+            raise Exception("Database operation failed.")
+        print(success_message)
+        audit_log.update_audit_log(current_user, item_name, "UPDATE", audit_message)
+        return result
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
+
+
 @roles_required(["Admin"])
 def add_inventory_item(
     current_user,
@@ -77,116 +93,81 @@ def add_inventory_item(
 
 @roles_required(["Admin", "User"])
 def increase_item(current_user, item_name, quantity):
-    """Increases item quantity
-
-    Args:
-        current_user (CurrentUser): Current user
-        item_name (String): Name of item
-        quantity (int): Quantity to increase item by
-
-    Raises:
-        TypeError: Item name is an empty string
-        TypeError: Quantity is not a positive integer
-    """
     try:
         if not validators.is_non_empty_string(item_name):
-            raise TypeError("Item name must be non-empty string")
+            raise TypeError("Item name must be a non-empty string")
         if not validators.is_positive_int(quantity):
             raise TypeError("Quantity must be a positive integer")
-        db_connection.execute_query(
-            "UPDATE inventory SET quantity = quantity + %s WHERE item_name = %s",
-            [quantity, item_name],
-        )
-        print("Quantity of " + item_name + " increased")
-        audit_log.update_audit_log(
+        query = "UPDATE inventory SET quantity = quantity + %s WHERE item_name = %s"
+        perform_inventory_update(
             current_user,
             item_name,
-            "UPDATE",
-            "Quantity increased by " + str(quantity),
+            query,
+            [quantity, item_name],
+            f"Quantity of {item_name} increased",
+            f"Quantity increased by {quantity}",
         )
-    except (MySQLError, Exception) as e:
+    except Exception as e:
         print(f"An error occurred while increasing item quantity: {e}")
 
 
 @roles_required(["Admin", "User"])
 def decrease_item(current_user, item_name, quantity):
-    """Decreases inventory item quantity
-
-    Args:
-        current_user (CurrentUser): Current user
-        item_name (String): Name of item
-        quantity (int): Quantity to increase item by
-
-    Raises:
-        TypeError: Item name is an empty string
-        TypeError: Quantity is not a positive integer
-    """
     try:
         if not validators.is_non_empty_string(item_name):
-            raise TypeError("Item name must be non-empty string")
+            raise TypeError("Item name must be a non-empty string")
         if not validators.is_positive_int(quantity):
             raise TypeError("Quantity must be a positive integer")
-        db_connection.execute_query(
-            "UPDATE inventory SET quantity = quantity - %s WHERE item_name = %s",
-            [quantity, item_name],
+        # Check current quantity to ensure it will not go negative.
+        current = db_connection.execute_query(
+            "SELECT quantity FROM inventory WHERE item_name = %s", [item_name], False
         )
-        print("Quantity of " + item_name + " decreased")
-        audit_log.update_audit_log(
+        if not current or len(current) == 0:
+            raise Exception("Item not found")
+        current_qty = current[0][0]
+        if current_qty - quantity < 0:
+            raise ValueError("Insufficient quantity: cannot decrease below 0")
+        query = "UPDATE inventory SET quantity = quantity - %s WHERE item_name = %s"
+        perform_inventory_update(
             current_user,
             item_name,
-            "UPDATE",
-            "Quantity decreased by " + str(quantity),
+            query,
+            [quantity, item_name],
+            f"Quantity of {item_name} decreased",
+            f"Quantity decreased by {quantity}",
         )
-    except (MySQLError, Exception) as e:
+    except Exception as e:
         print(f"An error occurred while decreasing item quantity: {e}")
 
 
 @roles_required(["Admin", "User"])
 def set_quantity(current_user, item_name, quantity):
-    """Sets inventory item quantity
-
-    Args:
-        current_user (CurrentUser): Current user
-        item_name (String): Name of item
-        quantity (int): Quantity to increase item by
-
-    Raises:
-        TypeError: Item name is an empty string
-        TypeError: Quantity is not a positive integer
-    """
     try:
         if not validators.is_non_empty_string(item_name):
-            raise TypeError("Item name must be non-empty string")
+            raise TypeError("Item name must be a non-empty string")
         if not validators.is_positive_int(quantity):
             raise TypeError("Quantity must be a positive integer")
-        db_connection.execute_query(
-            "UPDATE inventory SET quantity = %s WHERE item_name = %s",
+        # No negative quantities allowed.
+        if quantity < 0:
+            raise ValueError("Quantity cannot be negative")
+        query = "UPDATE inventory SET quantity = %s WHERE item_name = %s"
+        perform_inventory_update(
+            current_user,
+            item_name,
+            query,
             [quantity, item_name],
+            f"Quantity of {item_name} set to {quantity}",
+            f"Quantity set to {quantity}",
         )
-        print("Quantity of " + item_name + " set to " + str(quantity))
-        audit_log.update_audit_log(
-            current_user, item_name, "UPDATE", "Quantity set to " + str(quantity)
-        )
-    except (MySQLError, Exception) as e:
+    except Exception as e:
         print(f"An error occurred while setting item quantity: {e}")
 
 
 @roles_required(["Admin", "User"])
 def set_expiration(current_user, item_name, new_expiration):
-    """Sets new item expiration date
-
-    Args:
-        current_user (CurrentUser): Current user
-        item_name (String): Name of item
-        new_expiration (String): New expiration date (YYYY-MM-DD)
-
-    Raises:
-        TypeError: Item name is an empty string
-        TypeError: Expiration date is not formatted YYYY-MM-DD
-    """
     try:
         if not validators.is_non_empty_string(item_name):
-            raise TypeError("Item name must be non-empty string")
+            raise TypeError("Item name must be a non-empty string")
         if not validators.is_valid_date(new_expiration):
             raise TypeError("Expiration date must be formatted YYYY-MM-DD")
         db_connection.execute_query(
@@ -206,19 +187,9 @@ def set_expiration(current_user, item_name, new_expiration):
 
 @roles_required(["Admin", "User"])
 def set_description(current_user, item_name, new_description):
-    """Sets new description of item
-
-    Args:
-        current_user (CurrentUser): Current user
-        item_name (String): Name of item
-        new_description (String): New description
-
-    Raises:
-        TypeError: Item name is an empty string
-    """
     try:
         if not validators.is_non_empty_string(item_name):
-            raise TypeError("Item name must be non-empty string")
+            raise TypeError("Item name must be a non-empty string")
         db_connection.execute_query(
             "UPDATE inventory SET description = %s WHERE item_name = %s",
             [new_description, item_name],
@@ -236,22 +207,11 @@ def set_description(current_user, item_name, new_description):
 
 @roles_required(["Admin", "User"])
 def set_minimum_threshold(current_user, item_name, new_minimum_threshold):
-    """Sets new minimum threshold
-
-    Args:
-        current_user (CurrentUser): Current user
-        item_name (String): Name of item
-        new_minimum_threshold (int): New minimum threshold value
-
-    Raises:
-        TypeError: Item name is an empty string
-        TypeError: Minimum threshold is not a positive integer
-    """
     try:
         if not validators.is_non_empty_string(item_name):
-            raise TypeError("Item name must be non-empty string")
+            raise TypeError("Item name must be a non-empty string")
         if not validators.is_positive_int(new_minimum_threshold):
-            raise TypeError("New minimum threshold must be positive integer")
+            raise TypeError("New minimum threshold must be a positive integer")
         db_connection.execute_query(
             "UPDATE inventory SET min_threshold = %s WHERE item_name = %s",
             [new_minimum_threshold, item_name],
@@ -272,7 +232,7 @@ def set_minimum_threshold(current_user, item_name, new_minimum_threshold):
         print(f"An error occurred while setting the new minimum threshold: {e}")
 
 
-@roles_required(["Admin", "User"])
+@roles_required(["Admin", "User", "Viewer"])
 def show_item(current_user, item_name):
     """Retrieves an item
 
@@ -318,7 +278,7 @@ def delete_item(current_user, item_name):
         print(f"An error occurred while deleting item: {e}")
 
 
-@roles_required(["Admin", "User"])
+@roles_required(["Admin", "User", "Viewer"])
 def show_all_inventory(current_user):
     """Shows all inventory items
 

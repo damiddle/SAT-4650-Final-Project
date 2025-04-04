@@ -51,9 +51,12 @@ def pull_audit_log(current_user, number_of_entries):
     Returns:
         List of tuples: List of audit log entries in tuples
     """
-    if not validators.is_positive_int(number_of_entries):
-        raise TypeError("Number of entries must be a positive integer")
+    connection = None
+    cursor = None
     try:
+        if not validators.is_positive_int(number_of_entries):
+            raise TypeError("Number of entries must be a positive integer")
+
         connection = db_connection.get_connection()
         if connection is None:
             print("Unable to establish a database connection.")

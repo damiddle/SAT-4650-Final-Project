@@ -22,7 +22,7 @@ def login_user():
             if not validators.is_non_empty_string(username):
                 raise ValueError("Username must be a non-empty string")
             # Using getpass to hide the password input
-            password = getpass.getpass("Password: ")
+            password = input("Password: ")
             if not validators.is_non_empty_string(password):
                 raise ValueError("Password must be a non-empty string")
             current_user = users.login(username, password)
@@ -52,6 +52,152 @@ def inventory_menu(current_user):
                 "[5] Delete item\n"
                 "[6] Return to main menu\n"
             )
+            if action == "1":
+                try:
+                    table_contents = inventory.show_all_inventory(current_user)
+                    for row in table_contents:
+                        print(
+                            f"Item name: {row[0]} | Category: {row[1]} | Description: {row[2]} | "
+                            f"Quantity: {row[3]} | Expiration date: {row[4]} | "
+                            f"Minimum threshold: {row[5]} | Last updated: {row[6]}"
+                        )
+                except Exception as e:
+                    print(f"Error displaying inventory: {e}")
+
+            elif action == "2":
+                try:
+                    item_name = input("Enter item name to view: ")
+                    if not validators.is_non_empty_string(item_name):
+                        raise ValueError("Item name must be a non-empty string")
+                    item_contents = inventory.show_item(current_user, item_name)
+                    if item_contents and len(item_contents) > 0:
+                        row = item_contents[0]
+
+                        print(
+                            f"Item name: {row[1]} | Category: {row[2]} | Description: {row[3]} | "
+                            f"Quantity: {row[4]} | Expiration date: {row[5]} | "
+                            f"Minimum threshold: {row[6]} | Last updated: {row[7]}"
+                        )
+                    else:
+                        print("Item not found.")
+                except Exception as e:
+                    print(f"Error retrieving item: {e}")
+
+            elif action == "3":
+                try:
+                    item_name = input("Enter item to update: ")
+                    if not validators.is_non_empty_string(item_name):
+                        raise ValueError("Item must be a non-empty string")
+                    update_action = input(
+                        "Update Options:\n"
+                        "[1] Increase quantity\n"
+                        "[2] Decrease quantity\n"
+                        "[3] Set quantity\n"
+                        "[4] Set expiration date\n"
+                        "[5] Set minimum threshold\n"
+                        "[6] Set description\n"
+                        "[7] Cancel\n"
+                    )
+                    if update_action in ["1", "2", "3"]:
+                        quantity_input = input("Enter quantity: ")
+                        try:
+                            quantity = int(quantity_input)
+                        except ValueError:
+                            raise ValueError("Quantity must be a positive integer")
+                        if not validators.is_positive_int(quantity):
+                            raise ValueError("Quantity must be a positive integer")
+                        if update_action == "1":
+                            inventory.increase_item(current_user, item_name, quantity)
+                        elif update_action == "2":
+                            inventory.decrease_item(current_user, item_name, quantity)
+                        elif update_action == "3":
+                            inventory.set_quantity(current_user, item_name, quantity)
+                    elif update_action == "4":
+                        new_expiration = input(
+                            "Enter new expiration date (YYYY-MM-DD): "
+                        )
+                        if not validators.is_valid_date(new_expiration):
+                            raise ValueError(
+                                "New expiration date must be in YYYY-MM-DD format"
+                            )
+                        inventory.set_expiration(
+                            current_user, item_name, new_expiration
+                        )
+                    elif update_action == "5":
+                        threshold_input = input("Enter new minimum threshold: ")
+                        try:
+                            new_threshold = int(threshold_input)
+                        except ValueError:
+                            raise ValueError("New threshold must be a positive integer")
+                        if not validators.is_positive_int(new_threshold):
+                            raise ValueError("New threshold must be a positive integer")
+                        inventory.set_minimum_threshold(
+                            current_user, item_name, new_threshold
+                        )
+                    elif update_action == "6":
+                        new_description = input("Enter new description: ")
+                        inventory.set_description(
+                            current_user, item_name, new_description
+                        )
+                    elif update_action == "7":
+                        print("Update cancelled.")
+                    else:
+                        print("Invalid update action")
+                except Exception as e:
+                    print(f"Error updating item: {e}")
+
+            elif action == "4" and current_user.role == "Admin":
+                try:
+                    item_name = input("Enter item to add: ")
+                    if not validators.is_non_empty_string(item_name):
+                        raise ValueError("Item name must be a non-empty string")
+                    item_category = input("Enter item category: ")
+                    if not validators.is_non_empty_string(item_category):
+                        raise ValueError("Item category must be a non-empty string")
+                    item_description = input("Enter item description: ")
+                    initial_quantity_input = input("Enter the initial quantity: ")
+                    try:
+                        initial_quantity = int(initial_quantity_input)
+                    except ValueError:
+                        raise ValueError("Initial quantity must be a positive integer")
+                    if not validators.is_positive_int(initial_quantity):
+                        raise ValueError("Initial quantity must be a positive integer")
+                    expiration_date = input("Enter the expiration date (YYYY-MM-DD): ")
+                    if not validators.is_valid_date(expiration_date):
+                        raise ValueError("Expiration date must be in YYYY-MM-DD format")
+                    minimum_threshold_input = input("Enter the minimum threshold: ")
+                    try:
+                        minimum_threshold = int(minimum_threshold_input)
+                    except ValueError:
+                        raise ValueError("Minimum threshold must be a positive integer")
+                    if not validators.is_positive_int(minimum_threshold):
+                        raise ValueError("Minimum threshold must be a positive integer")
+                    inventory.add_inventory_item(
+                        current_user,
+                        item_name,
+                        item_category,
+                        item_description,
+                        initial_quantity,
+                        expiration_date,
+                        minimum_threshold,
+                    )
+                except Exception as e:
+                    print(f"Error adding item: {e}")
+
+            elif action == "5" and current_user.role == "Admin":
+                try:
+                    item_name = input("Enter item to delete: ")
+                    if not validators.is_non_empty_string(item_name):
+                        raise ValueError("Item name must be a non-empty string")
+                    inventory.delete_item(current_user, item_name)
+                except Exception as e:
+                    print(f"Error deleting item: {e}")
+
+            elif action == "6":
+                break
+
+            else:
+                print("Invalid action. Please try again.")
         elif current_user.role == "User":
             action = input(
                 "Inventory Menu (User):\n"
@@ -60,6 +206,104 @@ def inventory_menu(current_user):
                 "[3] Update item\n"
                 "[4] Return to main menu\n"
             )
+            if action == "1":
+                try:
+                    table_contents = inventory.show_all_inventory(current_user)
+                    for row in table_contents:
+                        print(
+                            f"Item name: {row[0]} | Category: {row[1]} | Description: {row[2]} | "
+                            f"Quantity: {row[3]} | Expiration date: {row[4]} | "
+                            f"Minimum threshold: {row[5]} | Last updated: {row[6]}"
+                        )
+                except Exception as e:
+                    print(f"Error displaying inventory: {e}")
+
+            elif action == "2":
+                try:
+                    item_name = input("Enter item name to view: ")
+                    if not validators.is_non_empty_string(item_name):
+                        raise ValueError("Item name must be a non-empty string")
+                    item_contents = inventory.show_item(current_user, item_name)
+                    if item_contents and len(item_contents) > 0:
+                        row = item_contents[0]
+
+                        print(
+                            f"Item name: {row[1]} | Category: {row[2]} | Description: {row[3]} | "
+                            f"Quantity: {row[4]} | Expiration date: {row[5]} | "
+                            f"Minimum threshold: {row[6]} | Last updated: {row[7]}"
+                        )
+                    else:
+                        print("Item not found.")
+                except Exception as e:
+                    print(f"Error retrieving item: {e}")
+
+            elif action == "3":
+                try:
+                    item_name = input("Enter item to update: ")
+                    if not validators.is_non_empty_string(item_name):
+                        raise ValueError("Item must be a non-empty string")
+                    update_action = input(
+                        "Update Options:\n"
+                        "[1] Increase quantity\n"
+                        "[2] Decrease quantity\n"
+                        "[3] Set quantity\n"
+                        "[4] Set expiration date\n"
+                        "[5] Set minimum threshold\n"
+                        "[6] Set description\n"
+                        "[7] Cancel\n"
+                    )
+                    if update_action in ["1", "2", "3"]:
+                        quantity_input = input("Enter quantity: ")
+                        try:
+                            quantity = int(quantity_input)
+                        except ValueError:
+                            raise ValueError("Quantity must be a positive integer")
+                        if not validators.is_positive_int(quantity):
+                            raise ValueError("Quantity must be a positive integer")
+                        if update_action == "1":
+                            inventory.increase_item(current_user, item_name, quantity)
+                        elif update_action == "2":
+                            inventory.decrease_item(current_user, item_name, quantity)
+                        elif update_action == "3":
+                            inventory.set_quantity(current_user, item_name, quantity)
+                    elif update_action == "4":
+                        new_expiration = input(
+                            "Enter new expiration date (YYYY-MM-DD): "
+                        )
+                        if not validators.is_valid_date(new_expiration):
+                            raise ValueError(
+                                "New expiration date must be in YYYY-MM-DD format"
+                            )
+                        inventory.set_expiration(
+                            current_user, item_name, new_expiration
+                        )
+                    elif update_action == "5":
+                        threshold_input = input("Enter new minimum threshold: ")
+                        try:
+                            new_threshold = int(threshold_input)
+                        except ValueError:
+                            raise ValueError("New threshold must be a positive integer")
+                        if not validators.is_positive_int(new_threshold):
+                            raise ValueError("New threshold must be a positive integer")
+                        inventory.set_minimum_threshold(
+                            current_user, item_name, new_threshold
+                        )
+                    elif update_action == "6":
+                        new_description = input("Enter new description: ")
+                        inventory.set_description(
+                            current_user, item_name, new_description
+                        )
+                    elif update_action == "7":
+                        print("Update cancelled.")
+                    else:
+                        print("Invalid update action")
+                except Exception as e:
+                    print(f"Error updating item: {e}")
+            elif action == "4":
+                break
+
+            else:
+                print("Invalid action. Please try again.")
         elif current_user.role == "Viewer":
             action = input(
                 "Inventory Menu (Viewer):\n"
@@ -68,147 +312,40 @@ def inventory_menu(current_user):
                 "[3] Return to main menu\n"
             )
 
-        if action == "1":
-            try:
-                table_contents = inventory.show_all_inventory(current_user)
-                for row in table_contents:
-                    print(
-                        f"Item name: {row[0]} | Category: {row[1]} | Description: {row[2]} | "
-                        f"Quantity: {row[3]} | Expiration date: {row[4]} | "
-                        f"Minimum threshold: {row[5]} | Last updated: {row[6]}"
-                    )
-            except Exception as e:
-                print(f"Error displaying inventory: {e}")
-
-        elif action == "2":
-            try:
-                item_name = input("Enter item name to view: ")
-                if not validators.is_non_empty_string(item_name):
-                    raise ValueError("Item name must be a non-empty string")
-                item_contents = inventory.show_item(current_user, item_name)
-                if item_contents and len(item_contents) > 0:
-                    row = item_contents[0]
-                    print(
-                        f"Item name: {row[0]} | Category: {row[1]} | Description: {row[2]} | "
-                        f"Quantity: {row[3]} | Expiration date: {row[4]} | "
-                        f"Minimum threshold: {row[5]} | Last updated: {row[6]}"
-                    )
-                else:
-                    print("Item not found.")
-            except Exception as e:
-                print(f"Error retrieving item: {e}")
-
-        elif action == "3":
-            try:
-                item_name = input("Enter item to update: ")
-                if not validators.is_non_empty_string(item_name):
-                    raise ValueError("Item must be a non-empty string")
-                update_action = input(
-                    "Update Options:\n"
-                    "[1] Increase quantity\n"
-                    "[2] Decrease quantity\n"
-                    "[3] Set quantity\n"
-                    "[4] Set expiration date\n"
-                    "[5] Set minimum threshold\n"
-                    "[6] Set description\n"
-                    "[7] Cancel\n"
-                )
-                if update_action in ["1", "2", "3"]:
-                    quantity_input = input("Enter quantity: ")
-                    try:
-                        quantity = int(quantity_input)
-                    except ValueError:
-                        raise ValueError("Quantity must be a positive integer")
-                    if not validators.is_positive_int(quantity):
-                        raise ValueError("Quantity must be a positive integer")
-                    if update_action == "1":
-                        inventory.increase_item(current_user, item_name, quantity)
-                    elif update_action == "2":
-                        inventory.decrease_item(current_user, item_name, quantity)
-                    elif update_action == "3":
-                        inventory.set_quantity(current_user, item_name, quantity)
-                elif update_action == "4":
-                    new_expiration = input("Enter new expiration date (YYYY-MM-DD): ")
-                    if not validators.is_valid_date(new_expiration):
-                        raise ValueError(
-                            "New expiration date must be in YYYY-MM-DD format"
+            if action == "1":
+                try:
+                    table_contents = inventory.show_all_inventory(current_user)
+                    for row in table_contents:
+                        print(
+                            f"Item name: {row[0]} | Category: {row[1]} | Description: {row[2]} | "
+                            f"Quantity: {row[3]} | Expiration date: {row[4]} | "
+                            f"Minimum threshold: {row[5]} | Last updated: {row[6]}"
                         )
-                    inventory.set_expiration(current_user, item_name, new_expiration)
-                elif update_action == "5":
-                    threshold_input = input("Enter new minimum threshold: ")
-                    try:
-                        new_threshold = int(threshold_input)
-                    except ValueError:
-                        raise ValueError("New threshold must be a positive integer")
-                    if not validators.is_positive_int(new_threshold):
-                        raise ValueError("New threshold must be a positive integer")
-                    inventory.set_minimum_threshold(
-                        current_user, item_name, new_threshold
-                    )
-                elif update_action == "6":
-                    new_description = input("Enter new description: ")
-                    inventory.set_description(current_user, item_name, new_description)
-                elif update_action == "7":
-                    print("Update cancelled.")
-                else:
-                    print("Invalid update action")
-            except Exception as e:
-                print(f"Error updating item: {e}")
+                except Exception as e:
+                    print(f"Error displaying inventory: {e}")
 
-        elif action == "4" and current_user.role == "Admin":
-            try:
-                item_name = input("Enter item to add: ")
-                if not validators.is_non_empty_string(item_name):
-                    raise ValueError("Item name must be a non-empty string")
-                item_category = input("Enter item category: ")
-                if not validators.is_non_empty_string(item_category):
-                    raise ValueError("Item category must be a non-empty string")
-                item_description = input("Enter item description: ")
-                initial_quantity_input = input("Enter the initial quantity: ")
+            elif action == "2":
                 try:
-                    initial_quantity = int(initial_quantity_input)
-                except ValueError:
-                    raise ValueError("Initial quantity must be a positive integer")
-                if not validators.is_positive_int(initial_quantity):
-                    raise ValueError("Initial quantity must be a positive integer")
-                expiration_date = input("Enter the expiration date (YYYY-MM-DD): ")
-                if not validators.is_valid_date(expiration_date):
-                    raise ValueError("Expiration date must be in YYYY-MM-DD format")
-                minimum_threshold_input = input("Enter the minimum threshold: ")
-                try:
-                    minimum_threshold = int(minimum_threshold_input)
-                except ValueError:
-                    raise ValueError("Minimum threshold must be a positive integer")
-                if not validators.is_positive_int(minimum_threshold):
-                    raise ValueError("Minimum threshold must be a positive integer")
-                inventory.add_inventory_item(
-                    current_user,
-                    item_name,
-                    item_category,
-                    item_description,
-                    initial_quantity,
-                    expiration_date,
-                    minimum_threshold,
-                )
-            except Exception as e:
-                print(f"Error adding item: {e}")
+                    item_name = input("Enter item name to view: ")
+                    if not validators.is_non_empty_string(item_name):
+                        raise ValueError("Item name must be a non-empty string")
+                    item_contents = inventory.show_item(current_user, item_name)
+                    if item_contents and len(item_contents) > 0:
+                        row = item_contents[0]
 
-        elif action == "5" and current_user.role == "Admin":
-            try:
-                item_name = input("Enter item to delete: ")
-                if not validators.is_non_empty_string(item_name):
-                    raise ValueError("Item name must be a non-empty string")
-                inventory.delete_item(current_user, item_name)
-            except Exception as e:
-                print(f"Error deleting item: {e}")
-
-        elif (action == "6" and current_user.role in ["Admin"]) or (
-            action == "4" and current_user.role in ["User", "Viewer"]
-        ):
-            break
-
-        else:
-            print("Invalid action. Please try again.")
+                        print(
+                            f"Item name: {row[1]} | Category: {row[2]} | Description: {row[3]} | "
+                            f"Quantity: {row[4]} | Expiration date: {row[5]} | "
+                            f"Minimum threshold: {row[6]} | Last updated: {row[7]}"
+                        )
+                    else:
+                        print("Item not found.")
+                except Exception as e:
+                    print(f"Error retrieving item: {e}")
+            elif action == "3":
+                break
+            else:
+                print("Invalid action. Please try again.")
 
 
 def users_menu(current_user):

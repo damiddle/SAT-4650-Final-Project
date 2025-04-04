@@ -24,7 +24,7 @@ def roles_required(allowed_roles):
                 raise PermissionError("Access denied: Invalid user object.")
             if current_user.role not in allowed_roles:
                 audit_log.update_audit_log(
-                    current_user, str(func), "ACCESS", "Unauthorized access by user"
+                    current_user, func.__name__, "ACCESS", "Unauthorized access by user"
                 )
                 raise PermissionError(
                     f"Unauthorized access. Allowed roles: {allowed_roles}"

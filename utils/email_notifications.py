@@ -1,10 +1,15 @@
 import smtplib
 from email.message import EmailMessage
 import validators
+import os
+from dotenv import load_dotenv
 
-SMTP_SERVER = "localhost"
-SMTP_PORT = 1025
-USE_TLS = False
+ENV_FILE_PATH = ".env"
+load_dotenv(ENV_FILE_PATH)
+
+SMTP_SERVER = os.getenv("SMTP_SERVER")
+SMTP_PORT = os.getenv("SMTP_PORT")
+USE_TLS = os.getenv("USE_TLS")
 
 
 # Sends email message to console right now, would update to utilize Gmail
