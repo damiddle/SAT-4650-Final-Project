@@ -1,40 +1,35 @@
 import mysql.connector
 import os
+import ast
 from dotenv import load_dotenv
 
 ENV_FILE_PATH = ".env"
 load_dotenv(ENV_FILE_PATH)
-
 DB_HOST = os.getenv("DB_HOST")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
-
-VALID_USER_ROLES = os.getenv("VALID_USER_ROLES")
+DB_NAME = os.getenv("DB_NAME")
+VALID_USER_ROLES = ast.literal_eval(os.getenv("VALID_USER_ROLES"))
 
 
 def connect_to_database():
-    """Connects to ems_inventory database
+    """Connects to database and returns connection
 
     Returns:
-        Connection: Connection object to MySQL database
+        Connection: Returns connection object to database
     """
-
     try:
         connection = mysql.connector.connect(
             host=DB_HOST,
             user=DB_USER,
             password=DB_PASSWORD,
-            database="ems_inventory",
+            database=DB_NAME,
         )
-
         if connection.is_connected():
             # print("Successfully connected to EMS database")
-
             return connection
-
     except mysql.connector.Error as e:
         print(f"Database error: {e}")
-
         try:
             # Create database if not exist
             connection = mysql.connector.connect(
@@ -42,12 +37,10 @@ def connect_to_database():
                 user="root",
                 password="mysqlpass",
             )
-
             print("Creating database")
             cursor = connection.cursor()
             cursor.execute("CREATE DATABASE IF NOT EXISTS ems_inventory")
             cursor.execute("USE ems_inventory")
-
             print("Creating tables")
             cursor.execute(
                 """CREATE TABLE IF NOT EXISTS users (
@@ -60,7 +53,6 @@ def connect_to_database():
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);"""
             )
             print("Users created")
-
             cursor.execute(
                 """CREATE TABLE IF NOT EXISTS inventory (
                     item_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -74,7 +66,6 @@ def connect_to_database():
                     UNIQUE(item_name, category));"""
             )
             print("Inventory created")
-
             cursor.execute(
                 """CREATE TABLE audit_log (
                     log_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -85,55 +76,39 @@ def connect_to_database():
                     details TEXT);"""
             )
             print("Audit log created")
-
             print("All tables created")
-
             connection = mysql.connector.connect(
                 host=DB_HOST,
                 user=DB_USER,
                 password=DB_PASSWORD,
                 database="ems_inventory",
             )
-
             if connection.is_connected():
                 print("Successfully connected to EMS database")
-
                 return connection
-
         except mysql.connector.Error as e:
             print(f"Database error: {e}")
 
 
-def show_table(table):
-    """Prints MySQL table to console
+def execute_query(query, params=None, commit=True):
+    """Executes a MySQL query
 
     Args:
-        table (String): Name of the table in ems_inventory to print
+        query (str): Query to execute
+        params (list, optional): List of parameters to execute with query. Defaults to None.
+        commit (bool, optional): Whether to commit any changes to database. Defaults to True.
+
+    Returns:
+        Result: Varies depending on query
     """
-
-    with connect_to_database() as connection:
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT * FROM " + table)
-            contents = cursor.fetchall()
-
-            for row in contents:
-                print(row)
-
-
-def execute_query(query, params=None, commit=True):
     try:
         with connect_to_database() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(query, params)
-
                 if commit:
                     connection.commit()
-
                 result = cursor.fetchall()
-
         return result
-
     except Exception as e:
         print(f"Database error: {e}")
-
         return
