@@ -5,8 +5,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import db_connection
 import utils.encryption as encryption
 import api.audit_log as audit_log
-from utils.decorators import admin_required
+from utils.decorators import roles_required
 import utils.validators as validators
+from mysql.connector import Error as MySQLError
 
 
 class CurrentUser:
@@ -16,7 +17,7 @@ class CurrentUser:
         self.email = email
 
 
-@admin_required
+@roles_required(["Admin"])
 def add_user(current_user, target_user, password, role, email):
     """Adds a new user
 
@@ -62,11 +63,11 @@ def add_user(current_user, target_user, password, role, email):
         else:
             print("User " + target_user + " already exists, please update user instead")
         audit_log.update_audit_log(current_user, target_user, "ADD", "New user added")
-    except Exception as e:
+    except (MySQLError, Exception) as e:
         print(f"An error occurred while entering user {e}")
 
 
-@admin_required
+@roles_required(["Admin"])
 def change_user_role(current_user, target_user, new_role):
     """Admin function to change a user's role
 
@@ -92,11 +93,11 @@ def change_user_role(current_user, target_user, new_role):
         audit_log.update_audit_log(
             current_user, target_user, "UPDATE", "Set user role to " + new_role
         )
-    except Exception as e:
+    except (MySQLError, Exception) as e:
         print(f"An error occurred while changing user role: {e}")
 
 
-@admin_required
+@roles_required(["Admin"])
 def delete_user(current_user, target_user):
     """Deletes a user
 
@@ -115,7 +116,7 @@ def delete_user(current_user, target_user):
         )
         print("User deleted")
         audit_log.update_audit_log(current_user, target_user, "DELETE", "Deleted user")
-    except Exception as e:
+    except (MySQLError, Exception) as e:
         print(f"An error occurred while deleting user: {e}")
 
 
@@ -138,13 +139,13 @@ def login(username, password):
             raise TypeError("Username must be non-empty string")
         if not validators.is_non_empty_string(password):
             raise TypeError("Password must be non-empty string")
-        ref_pass = db_connection.execute_query(
+        user_details = db_connection.execute_query(
             "SELECT password_encrypted FROM users WHERE username = %s",
             [username],
             False,
         )
-        if ref_pass is not None:
-            if encryption.decrypt_data(ref_pass[0][0]) == password:
+        if user_details and len(user_details) > 0:
+            if encryption.decrypt_data(user_details[0][0]) == password:
                 print("Successfully logged in!")
                 current_user = get_user(username)[0]
                 current_user = CurrentUser(
@@ -157,12 +158,12 @@ def login(username, password):
                 )
                 return current_user
             else:
-                print("Login not valid, try again")
+                print("Invalid login credentials")
                 return False
         else:
-            print("Login not valid, try again")
+            print("No user found with username")
             return False
-    except Exception as e:
+    except (MySQLError, Exception) as e:
         print(f"An error occurred while logging in: {e}")
         return False
 
@@ -186,12 +187,12 @@ def get_user(username):
             "SELECT * FROM users WHERE username = %s", [username], False
         )
         return user_list
-    except Exception as e:
+    except (MySQLError, Exception) as e:
         print(f"An error occurred while retrieving user: {e}")
-        return
+        return []
 
 
-@admin_required
+@roles_required(["Admin"])
 def view_user(current_user, target_user):
     """Admin function to view user attributes
 
@@ -212,9 +213,9 @@ def view_user(current_user, target_user):
             "SELECT * FROM users WHERE username = %s", [target_user], False
         )
         return user_list
-    except Exception as e:
+    except (MySQLError, Exception) as e:
         print(f"An error occurred while retrieving user data: {e}")
-        return
+        return []
 
 
 def change_user_password(current_user):
@@ -233,7 +234,8 @@ def change_user_password(current_user):
             new_password = input("Please enter your new password: ")
             if not validators.is_non_empty_string(new_password):
                 raise TypeError("New password must be non-empty string")
-            if new_password == input("Reenter your password: "):
+            reentered = input("Reenter your new password: ")
+            if reentered == new_password:
                 db_connection.execute_query(
                     "UPDATE users SET password_encrypted = %s WHERE username = %s",
                     [
@@ -248,8 +250,8 @@ def change_user_password(current_user):
             else:
                 print("Passwords did not match")
         else:
-            print("Password was not valid")
-    except Exception as e:
+            print("Current password was not valid")
+    except (MySQLError, Exception) as e:
         print(f"An error occurred while changing password: {e}")
 
 
@@ -272,7 +274,8 @@ def change_user_username(current_user):
             new_username = input("Please enter your new username: ")
             if not validators.is_non_empty_string(new_username):
                 raise TypeError("New username must be non-empty string")
-            if new_username == input("Reenter your username: "):
+            reentered = input("Reenter your new username: ")
+            if reentered == new_username:
                 db_connection.execute_query(
                     "UPDATE users SET username = %s WHERE username = %s",
                     [new_username, current_user.username],
@@ -287,13 +290,13 @@ def change_user_username(current_user):
                 return new_username
             else:
                 print("Usernames did not match")
-                return
+                return None
         else:
             print("Password was not valid")
-            return
-    except Exception as e:
+            return None
+    except (MySQLError, Exception) as e:
         print(f"An error occurred while changing username: {e}")
-        return
+        return None
 
 
 def change_user_email(current_user):
@@ -306,7 +309,7 @@ def change_user_email(current_user):
         TypeError: New email is empty string
 
     Returns:
-        str: New username
+        str: New email
     """
     try:
         current_password = input("Verify your current password: ")
@@ -315,7 +318,8 @@ def change_user_email(current_user):
             new_email = input("Please enter your new email: ")
             if not validators.is_valid_email(new_email):
                 raise TypeError("Email was not valid")
-            if new_email == input("Reenter your email: "):
+            reentered = input("Reenter your new email: ")
+            if new_email == reentered:
                 db_connection.execute_query(
                     "UPDATE users SET email = %s WHERE username = %s",
                     [new_email, current_user.username],
@@ -330,16 +334,16 @@ def change_user_email(current_user):
                 return new_email
             else:
                 print("Emails did not match")
-                return
+                return None
         else:
             print("Password was not valid")
-            return
-    except Exception as e:
+            return None
+    except (MySQLError, Exception) as e:
         print(f"An error occurred while changing email: {e}")
-        return
+        return None
 
 
-@admin_required
+@roles_required(["Admin"])
 def show_all_users(current_user):
     """Shows a list of all users
 
@@ -356,5 +360,6 @@ def show_all_users(current_user):
             False,
         )
         return table_contents
-    except Exception as e:
+    except (MySQLError, Exception) as e:
         print(f"Database error: {e}")
+        return []

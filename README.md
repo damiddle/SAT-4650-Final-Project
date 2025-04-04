@@ -1,14 +1,14 @@
 Table audit_log in database ems_inventory
-+------------------+------------------------------------------------+------+-----+-------------------+-------------------+
-| Field            | Type                                           | Null | Key | Default           | Extra             |
-+------------------+------------------------------------------------+------+-----+-------------------+-------------------+
-| log_id           | int                                            | NO   | PRI | NULL              | auto_increment    |
-| username         | varchar(50)                                    | YES  |     | NULL              |                   |
-| updated_object   | varchar(100)                                   | YES  |     | NULL              |                   |
-| action_type      | enum('ADD','UPDATE','DELETE','LOGIN','LOGOUT') | NO   |     | NULL              |                   |
-| action_timestamp | timestamp                                      | YES  |     | CURRENT_TIMESTAMP | DEFAULT_GENERATED |
-| details          | text                                           | YES  |     | NULL              |                   |
-+------------------+------------------------------------------------+------+-----+-------------------+-------------------+
++------------------+----------------------------------------------------------+------+-----+-------------------+-------------------+
+| Field            | Type                                                     | Null | Key | Default           | Extra             |
++------------------+----------------------------------------------------------+------+-----+-------------------+-------------------+
+| log_id           | int                                                      | NO   | PRI | NULL              | auto_increment    |
+| username         | varchar(50)                                              | YES  |     | NULL              |                   |
+| updated_object   | varchar(100)                                             | YES  |     | NULL              |                   |
+| action_type      | enum('ADD','UPDATE','DELETE','LOGIN','LOGOUT', 'ACCESS') | NO   |     | NULL              |                   |
+| action_timestamp | timestamp                                                | YES  |     | CURRENT_TIMESTAMP | DEFAULT_GENERATED |
+| details          | text                                                     | YES  |     | NULL              |                   |
++------------------+----------------------------------------------------------+------+-----+-------------------+-------------------+
 
 Table inventory in database ems_inventory
 +-----------------+--------------+------+-----+-------------------+-----------------------------------------------+

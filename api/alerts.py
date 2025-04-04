@@ -17,10 +17,10 @@ def search_for_expiration():
             None,
             False,
         )
-        return expired_inventory
+        return expired_inventory if expired_inventory is not None else []
     except Exception as e:
         print(f"An error occurred while searching for expired inventory: {e}")
-        return
+        return []
 
 
 def search_for_low_quantity():
@@ -35,7 +35,7 @@ def search_for_low_quantity():
             None,
             False,
         )
-        return low_inventory
+        return low_inventory if low_inventory is not None else []
     except Exception as e:
         print(f"An error occurred while searching for low inventory: {e}")
-        return
+        return []

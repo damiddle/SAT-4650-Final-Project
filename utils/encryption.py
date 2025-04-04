@@ -7,6 +7,8 @@ ENV_FILE_PATH = ".env"
 ACTIVE_KEY_VAR_NAME = "ACTIVE_ENCRYPTION_KEY"
 OLD_KEY_VAR_NAME = "OLD_ENCRYPTION_KEY"
 
+_active_key_cache = None
+
 
 def generate_encryption_key():
     """Generates an encryption key and stores it into the .env file for use
@@ -41,13 +43,25 @@ def load_encryption_key(version="Active"):
     Returns:
         bytes: Encryption key
     """
+    global _active_key_cache
+
     if version == "Active":
+        if _active_key_cache is not None:
+            return _active_key_cache
         key = os.getenv(ACTIVE_KEY_VAR_NAME)
+        if not key:
+            raise RuntimeError(
+                "Encryption key not found in .env file. Generate it first."
+            )
+        _active_key_cache = key.encode("utf-8")
+        return _active_key_cache
     elif version == "Old":
         key = os.getenv(OLD_KEY_VAR_NAME)
-    if not key:
-        raise RuntimeError("Encryption key not found in .env file. Generate it first.")
-    return key.encode("utf-8")
+        if not key:
+            raise RuntimeError("Old encryption key not found in .env file.")
+        return key.encode("utf-8")
+    else:
+        raise ValueError("Invalid key version specified. Use 'Active' or 'Old'.")
 
 
 def encrypt_data(data):
@@ -65,7 +79,8 @@ def encrypt_data(data):
     if not isinstance(data, str):
         raise TypeError("Data must be a string")
     key = Fernet(load_encryption_key())
-    return key.encrypt(data.encode("utf-8")).decode("utf-8")
+    encrypted = key.encrypt(data.encode("utf-8")).decode("utf-8")
+    return encrypted
 
 
 def decrypt_data(encrypted_data):
@@ -84,6 +99,8 @@ def decrypt_data(encrypted_data):
         raise TypeError("Encrypted data must be a string")
     key = Fernet(load_encryption_key())
     try:
-        return key.decrypt(encrypted_data.encode("utf-8")).decode("utf-8")
+        decrypted = key.decrypt(encrypted_data.encode("utf-8")).decode("utf-8")
+        return decrypted
     except Exception as e:
         print(f"Decryption failed: {e}")
+        raise Exception("Decryption failed") from e

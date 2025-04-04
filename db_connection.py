@@ -1,4 +1,5 @@
 import mysql.connector
+from mysql.connector import pooling, Error
 import os
 import ast
 from dotenv import load_dotenv
@@ -12,49 +13,94 @@ DB_NAME = os.getenv("DB_NAME")
 VALID_USER_ROLES = ast.literal_eval(os.getenv("VALID_USER_ROLES"))
 
 
-def connect_to_database():
-    """Connects to database and returns connection
-
-    Returns:
-        Connection: Returns connection object to database
+def create_connection_pool():
+    """
+    Creates a MySQL connection pool using parameters from the environment.
     """
     try:
-        connection = mysql.connector.connect(
+        pool = pooling.MySQLConnectionPool(
+            pool_name="db_pool",
+            pool_size=5,
+            pool_reset_session=True,
             host=DB_HOST,
             user=DB_USER,
             password=DB_PASSWORD,
             database=DB_NAME,
         )
+        print("Connection pool created successfully.")
+        return pool
+    except Error as err:
+        print(f"Error creating connection pool: {err}")
+        raise
+
+
+# Create a global connection pool instance
+connection_pool = create_connection_pool()
+
+
+def get_connection():
+    """
+    Retrieves a connection from the connection pool.
+    """
+    try:
+        connection = connection_pool.get_connection()
         if connection.is_connected():
-            # print("Successfully connected to EMS database")
             return connection
-    except mysql.connector.Error as e:
-        print(f"Database error: {e}")
-        try:
-            # Create database if not exist
-            connection = mysql.connector.connect(
-                host="localhost",
-                user="root",
-                password="mysqlpass",
-            )
-            print("Creating database")
-            cursor = connection.cursor()
-            cursor.execute("CREATE DATABASE IF NOT EXISTS ems_inventory")
-            cursor.execute("USE ems_inventory")
-            print("Creating tables")
-            cursor.execute(
-                """CREATE TABLE IF NOT EXISTS users (
+        else:
+            raise Error("Failed to retrieve a valid connection from the pool.")
+    except Error as e:
+        print(f"Error getting connection from pool: {e}")
+        raise
+
+
+def execute_query(query, params=None, commit=True):
+    try:
+        connection = get_connection()
+        cursor = connection.cursor()
+        cursor.execute(query, params)
+
+        # If the query is a SELECT, fetch results; otherwise, commit changes.
+        if query.strip().upper().startswith("SELECT"):
+            result = cursor.fetchall()
+        else:
+            connection.commit()
+            result = cursor.rowcount
+        return result
+    except Error as err:
+        print(f"Database error during query execution: {err}")
+        return None
+    finally:
+        if cursor:
+            cursor.close()
+        if connection and connection.is_connected():
+            connection.close()
+
+
+def initialize_database():
+    try:
+        # Connect without specifying a database to create it if needed.
+        connection = mysql.connector.connect(
+            host=DB_HOST,
+            user=DB_USER,
+            password=DB_PASSWORD,
+        )
+        cursor = connection.cursor()
+        cursor.execute("CREATE DATABASE IF NOT EXISTS %s", [DB_NAME])
+        cursor.execute("USE %s", [DB_NAME])
+        cursor.execute(
+            """CREATE TABLE IF NOT EXISTS users (
                     user_id INT PRIMARY KEY AUTO_INCREMENT, 
                     username VARCHAR(50) UNIQUE NOT NULL, 
                     password_encrypted VARCHAR(255) NOT NULL, 
                     role ENUM('Admin', 'User', 'Viewer') DEFAULT 'Viewer', 
                     email VARCHAR(100) UNIQUE NOT NULL, 
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);"""
-            )
-            print("Users created")
-            cursor.execute(
-                """CREATE TABLE IF NOT EXISTS inventory (
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                );"""
+        )
+        print("Table 'users' created")
+        cursor.execute(
+            """CREATE TABLE IF NOT EXISTS inventory (
                     item_id INT PRIMARY KEY AUTO_INCREMENT,
                     item_name VARCHAR(100) NOT NULL,
                     category VARCHAR(50) NOT NULL,
@@ -63,52 +109,25 @@ def connect_to_database():
                     expiration_date DATE,
                     min_threshold INT DEFAULT 1,
                     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    UNIQUE(item_name, category));"""
-            )
-            print("Inventory created")
-            cursor.execute(
-                """CREATE TABLE audit_log (
+                    UNIQUE(item_name, category)
+                );"""
+        )
+        print("Table 'inventory' created")
+        cursor.execute(
+            """CREATE TABLE IF NOT EXISTS audit_log (
                     log_id INT PRIMARY KEY AUTO_INCREMENT,
                     username VARCHAR(50),
                     updated_object VARCHAR(100),
-                    action_type ENUM('ADD', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT') NOT NULL,
+                    action_type ENUM('ADD', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT', 'ACCESS') NOT NULL,
                     action_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    details TEXT);"""
-            )
-            print("Audit log created")
-            print("All tables created")
-            connection = mysql.connector.connect(
-                host=DB_HOST,
-                user=DB_USER,
-                password=DB_PASSWORD,
-                database="ems_inventory",
-            )
-            if connection.is_connected():
-                print("Successfully connected to EMS database")
-                return connection
-        except mysql.connector.Error as e:
-            print(f"Database error: {e}")
-
-
-def execute_query(query, params=None, commit=True):
-    """Executes a MySQL query
-
-    Args:
-        query (str): Query to execute
-        params (list, optional): List of parameters to execute with query. Defaults to None.
-        commit (bool, optional): Whether to commit any changes to database. Defaults to True.
-
-    Returns:
-        Result: Varies depending on query
-    """
-    try:
-        with connect_to_database() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(query, params)
-                if commit:
-                    connection.commit()
-                result = cursor.fetchall()
-        return result
-    except Exception as e:
-        print(f"Database error: {e}")
-        return
+                    details TEXT
+                );"""
+        )
+        print("Table 'audit_log' created")
+    except Error as err:
+        print("Error initializing database: %s", err)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection and connection.is_connected():
+            connection.close()

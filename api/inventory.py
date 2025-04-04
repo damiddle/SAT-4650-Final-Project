@@ -4,11 +4,12 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import db_connection
 import api.audit_log as audit_log
-from utils.decorators import admin_required, admin_or_user_required
+from utils.decorators import roles_required
 import utils.validators as validators
+from mysql.connector import Error as MySQLError
 
 
-@admin_required
+@roles_required(["Admin"])
 def add_inventory_item(
     current_user,
     item_name,
@@ -36,21 +37,23 @@ def add_inventory_item(
         TypeError: Minimum threshold is a non-positive integer
     """
     try:
-        num_item = db_connection.execute_query(
+        # Check if the item already exists
+        result = db_connection.execute_query(
             "SELECT COUNT(*) AS num_rows FROM inventory WHERE item_name = %s",
             [item_name],
         )
-        if (num_item == 0) or (
-            num_item is None
-        ):  # Checks to make sure item does not exist
+        count = result[0][0] if result and len(result) > 0 else 0
+
+        if count == 0:
             if not validators.is_non_empty_string(item_name):
-                raise TypeError("Item name must be non-empty string")
+                raise TypeError("Item name must be a non-empty string")
             if not validators.is_positive_int(initial_quantity):
                 raise TypeError("Initial quantity must be a positive integer")
             if not validators.is_valid_date(expiration_date):
                 raise TypeError("Expiration date must be formatted YYYY-MM-DD")
             if not validators.is_positive_int(minimum_threshold):
                 raise TypeError("Minimum threshold must be a positive integer")
+
             db_connection.execute_query(
                 "INSERT INTO inventory (item_name, category, description, quantity, expiration_date, min_threshold) VALUES(%s, %s, %s, %s, %s, %s)",
                 [
@@ -62,17 +65,17 @@ def add_inventory_item(
                     minimum_threshold,
                 ],
             )
-            print(item_name + " added to inventory database")
+            print(f"{item_name} added to inventory database")
             audit_log.update_audit_log(
                 current_user, item_name, "ADD", "Added item to inventory"
             )
         else:
-            print("Item " + item_name + " already exists, please update item instead")
-    except Exception as e:
+            print(f"Item {item_name} already exists, please update item instead")
+    except (MySQLError, Exception) as e:
         print(f"An error occurred while adding inventory item: {e}")
 
 
-@admin_or_user_required
+@roles_required(["Admin", "User"])
 def increase_item(current_user, item_name, quantity):
     """Increases item quantity
 
@@ -90,30 +93,22 @@ def increase_item(current_user, item_name, quantity):
             raise TypeError("Item name must be non-empty string")
         if not validators.is_positive_int(quantity):
             raise TypeError("Quantity must be a positive integer")
-        updated_quantity = db_connection.execute_query(
-            "SELECT quantity FROM inventory WHERE item_name = %s",
-            [item_name],
-            False,
-        )
-        updated_quantity = (
-            updated_quantity[0][0] + quantity
-        )  # Adds amount to previous quantity
         db_connection.execute_query(
-            "UPDATE inventory SET quantity = %s WHERE item_name = %s",
-            [updated_quantity, item_name],
+            "UPDATE inventory SET quantity = quantity + %s WHERE item_name = %s",
+            [quantity, item_name],
         )
-        print("Quantity of " + item_name + " increased to " + str(updated_quantity))
+        print("Quantity of " + item_name + " increased")
         audit_log.update_audit_log(
             current_user,
             item_name,
             "UPDATE",
             "Quantity increased by " + str(quantity),
         )
-    except Exception as e:
+    except (MySQLError, Exception) as e:
         print(f"An error occurred while increasing item quantity: {e}")
 
 
-@admin_or_user_required
+@roles_required(["Admin", "User"])
 def decrease_item(current_user, item_name, quantity):
     """Decreases inventory item quantity
 
@@ -131,30 +126,22 @@ def decrease_item(current_user, item_name, quantity):
             raise TypeError("Item name must be non-empty string")
         if not validators.is_positive_int(quantity):
             raise TypeError("Quantity must be a positive integer")
-        updated_quantity = db_connection.execute_query(
-            "SELECT quantity FROM inventory WHERE item_name = %s",
-            [item_name],
-            False,
-        )
-        updated_quantity = (
-            updated_quantity[0][0] - quantity
-        )  # Decreases amount from previous quantity
         db_connection.execute_query(
-            "UPDATE inventory SET quantity = %s WHERE item_name = %s",
-            [updated_quantity, item_name],
+            "UPDATE inventory SET quantity = quantity - %s WHERE item_name = %s",
+            [quantity, item_name],
         )
-        print("Quantity of " + item_name + " decreased to " + str(updated_quantity))
+        print("Quantity of " + item_name + " decreased")
         audit_log.update_audit_log(
             current_user,
             item_name,
             "UPDATE",
             "Quantity decreased by " + str(quantity),
         )
-    except Exception as e:
+    except (MySQLError, Exception) as e:
         print(f"An error occurred while decreasing item quantity: {e}")
 
 
-@admin_or_user_required
+@roles_required(["Admin", "User"])
 def set_quantity(current_user, item_name, quantity):
     """Sets inventory item quantity
 
@@ -180,11 +167,11 @@ def set_quantity(current_user, item_name, quantity):
         audit_log.update_audit_log(
             current_user, item_name, "UPDATE", "Quantity set to " + str(quantity)
         )
-    except Exception as e:
+    except (MySQLError, Exception) as e:
         print(f"An error occurred while setting item quantity: {e}")
 
 
-@admin_or_user_required
+@roles_required(["Admin", "User"])
 def set_expiration(current_user, item_name, new_expiration):
     """Sets new item expiration date
 
@@ -213,11 +200,11 @@ def set_expiration(current_user, item_name, new_expiration):
             "UPDATE",
             "Expiration date set to " + new_expiration,
         )
-    except Exception as e:
+    except (MySQLError, Exception) as e:
         print(f"An error occurred while setting the new expiration date: {e}")
 
 
-@admin_or_user_required
+@roles_required(["Admin", "User"])
 def set_description(current_user, item_name, new_description):
     """Sets new description of item
 
@@ -243,11 +230,11 @@ def set_description(current_user, item_name, new_description):
             "UPDATE",
             "Description set to " + new_description,
         )
-    except Exception as e:
+    except (MySQLError, Exception) as e:
         print(f"An error occurred while setting the new description: {e}")
 
 
-@admin_or_user_required
+@roles_required(["Admin", "User"])
 def set_minimum_threshold(current_user, item_name, new_minimum_threshold):
     """Sets new minimum threshold
 
@@ -281,11 +268,11 @@ def set_minimum_threshold(current_user, item_name, new_minimum_threshold):
             "UPDATE",
             "Minimum threshold set to " + str(new_minimum_threshold),
         )
-    except Exception as e:
+    except (MySQLError, Exception) as e:
         print(f"An error occurred while setting the new minimum threshold: {e}")
 
 
-@admin_or_user_required
+@roles_required(["Admin", "User"])
 def show_item(current_user, item_name):
     """Retrieves an item
 
@@ -303,12 +290,12 @@ def show_item(current_user, item_name):
             "SELECT * FROM inventory WHERE item_name = %s", [item_name], False
         )
         return item_contents
-    except Exception as e:
+    except (MySQLError, Exception) as e:
         print(f"An error occurred while retrieving an item: {e}")
-        return
+        return []
 
 
-@admin_required
+@roles_required(["Admin"])
 def delete_item(current_user, item_name):
     """Deletes an item
 
@@ -325,13 +312,13 @@ def delete_item(current_user, item_name):
         db_connection.execute_query(
             "DELETE FROM inventory WHERE item_name = %s", [item_name]
         )
-        print(item_name + " deleted")
+        print(item_name + " deleted from inventory")
         audit_log.update_audit_log(current_user, item_name, "DELETE", "Deleted item")
-    except Exception as e:
+    except (MySQLError, Exception) as e:
         print(f"An error occurred while deleting item: {e}")
 
 
-@admin_or_user_required
+@roles_required(["Admin", "User"])
 def show_all_inventory(current_user):
     """Shows all inventory items
 
@@ -348,5 +335,6 @@ def show_all_inventory(current_user):
             False,
         )
         return table_contents
-    except Exception as e:
+    except (MySQLError, Exception) as e:
         print(f"Database error occurred while retrieving all inventory: {e}")
+        return []
