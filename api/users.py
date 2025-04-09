@@ -211,7 +211,9 @@ def view_user(current_user, target_user):
         if not validators.is_non_empty_string(target_user):
             raise TypeError("Target user must be non-empty string")
         user_list = db_connection.execute_query(
-            "SELECT * FROM users WHERE username = %s", [target_user], False
+            "SELECT user_id, username, role, email, created_at, updated_at FROM users WHERE username = %s",
+            [target_user],
+            False,
         )
         return user_list
     except (MySQLError, Exception) as e:
@@ -219,7 +221,7 @@ def view_user(current_user, target_user):
         return []
 
 
-def change_user_password(current_user):
+def change_user_password(current_user, new_password):
     """Changes user password
 
     Args:
@@ -229,38 +231,29 @@ def change_user_password(current_user):
         TypeError: New password is empty string
     """
     try:
-        current_password = input("Verify your current password: ")
-        login_check = login(current_user.username, current_password)
-        if (login_check is not None) and (login_check is not False):
-            new_password = input("Please enter your new password: ")
-            if not validators.is_non_empty_string(new_password):
-                raise TypeError("New password must be non-empty string")
-            reentered = input("Reenter your new password: ")
-            if reentered == new_password:
-                db_connection.execute_query(
-                    "UPDATE users SET password_encrypted = %s WHERE username = %s",
-                    [
-                        encryption.encrypt_data(new_password),
-                        current_user.username,
-                    ],
-                )
-                print("Password has been updated")
-                audit_log.update_audit_log(
-                    current_user, current_user.username, "UPDATE", "Changed password"
-                )
-            else:
-                print("Passwords did not match")
-        else:
-            print("Current password was not valid")
+        if not validators.is_non_empty_string(new_password):
+            raise TypeError("Password must be non-empty string")
+        db_connection.execute_query(
+            "UPDATE users SET password_encrypted = %s WHERE username = %s",
+            [encryption.encrypt_data(new_password), current_user.username],
+        )
+        print("Password has been updated")
+        audit_log.update_audit_log(
+            current_user,
+            current_user.username,
+            "UPDATE",
+            "Changed password to " + new_password,
+        )
     except (MySQLError, Exception) as e:
         print(f"An error occurred while changing password: {e}")
 
 
-def change_user_username(current_user):
+def change_user_username(current_user, new_username):
     """Changes username
 
     Args:
         current_user (CurrentUser): Current user
+        new_username (str): New username
 
     Raises:
         TypeError: New username is empty string
@@ -269,38 +262,24 @@ def change_user_username(current_user):
         str: New username
     """
     try:
-        current_password = input("Verify your current password: ")
-        login_check = login(current_user.username, current_password)
-        if (login_check is not None) and (login_check is not False):
-            new_username = input("Please enter your new username: ")
-            if not validators.is_non_empty_string(new_username):
-                raise TypeError("New username must be non-empty string")
-            reentered = input("Reenter your new username: ")
-            if reentered == new_username:
-                db_connection.execute_query(
-                    "UPDATE users SET username = %s WHERE username = %s",
-                    [new_username, current_user.username],
-                )
-                print("Username has been updated")
-                audit_log.update_audit_log(
-                    current_user,
-                    current_user.username,
-                    "UPDATE",
-                    "Changed username to " + new_username,
-                )
-                return new_username
-            else:
-                print("Usernames did not match")
-                return None
-        else:
-            print("Password was not valid")
-            return None
+        if not validators.is_non_empty_string(new_username):
+            raise TypeError("Username must be non-empty string")
+        db_connection.execute_query(
+            "UPDATE users SET username = %s WHERE username = %s",
+            [new_username, current_user.username],
+        )
+        print("Username has been updated")
+        audit_log.update_audit_log(
+            current_user,
+            current_user.username,
+            "UPDATE",
+            "Changed username to " + new_username,
+        )
     except (MySQLError, Exception) as e:
         print(f"An error occurred while changing username: {e}")
-        return None
 
 
-def change_user_email(current_user):
+def change_user_email(current_user, new_email):
     """Changes user email address
 
     Args:
@@ -313,35 +292,21 @@ def change_user_email(current_user):
         str: New email
     """
     try:
-        current_password = input("Verify your current password: ")
-        login_check = login(current_user.username, current_password)
-        if (login_check is not None) and (login_check is not False):
-            new_email = input("Please enter your new email: ")
-            if not validators.is_valid_email(new_email):
-                raise TypeError("Email was not valid")
-            reentered = input("Reenter your new email: ")
-            if new_email == reentered:
-                db_connection.execute_query(
-                    "UPDATE users SET email = %s WHERE username = %s",
-                    [new_email, current_user.username],
-                )
-                print("Email has been updated")
-                audit_log.update_audit_log(
-                    current_user,
-                    current_user.username,
-                    "UPDATE",
-                    "Changed email to " + new_email,
-                )
-                return new_email
-            else:
-                print("Emails did not match")
-                return None
-        else:
-            print("Password was not valid")
-            return None
+        if not validators.is_valid_email(new_email):
+            raise TypeError("Username must be non-empty string")
+        db_connection.execute_query(
+            "UPDATE users SET email = %s WHERE username = %s",
+            [new_email, current_user.username],
+        )
+        print("Email has been updated")
+        audit_log.update_audit_log(
+            current_user,
+            current_user.username,
+            "UPDATE",
+            "Changed email to " + new_email,
+        )
     except (MySQLError, Exception) as e:
         print(f"An error occurred while changing email: {e}")
-        return None
 
 
 @roles_required(["Admin"])
@@ -356,7 +321,7 @@ def show_all_users(current_user):
     """
     try:
         table_contents = db_connection.execute_query(
-            "SELECT username, role, email, created_at, updated_at FROM users",
+            "SELECT user_id, username, role, email, created_at, updated_at FROM users",
             None,
             False,
         )

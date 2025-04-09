@@ -1,17 +1,19 @@
 import tkinter as tk
-from tkinter import messagebox
-from tkinter import simpledialog
-from tkinter import scrolledtext
+from tkinter import messagebox, simpledialog, scrolledtext
 import utils.validators as validators
 import api.users as users
 import api.inventory as inventory
+import api.audit_log as audit_log
+import api.alerts as alerts
 
 
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("EMS Inventory GUI")
-        self.geometry("800x600")
+        self.geometry("1000x600")
+        self.attributes("-fullscreen", True)
+        self.bind("<Escape>", lambda event: self.attributes("-fullscreen", False))
         self.current_user = None  # To hold the logged-in user
         # Container to stack frames on top of each other
         container = tk.Frame(self)
@@ -20,7 +22,15 @@ class App(tk.Tk):
         container.grid_columnconfigure(0, weight=1)
         self.frames = {}
         # List of frames/screens to create
-        for F in (LoginFrame, MainMenuFrame, InventoryFrame, UsersFrame):
+        for F in (
+            LoginFrame,
+            MainMenuFrame,
+            InventoryFrame,
+            UsersFrame,
+            AuditFrame,
+            AlertFrame,
+            AccountFrame,
+        ):
             frame = F(container, self)
             self.frames[F] = frame
             # Place all frames in the same location;
@@ -70,7 +80,7 @@ class LoginFrame(tk.Frame):
             else:
                 messagebox.showerror("Login Error", "Invalid username or password.")
         except Exception as e:
-            messagebox.showerror("Login Error", str(e))
+            messagebox.showerror("An error occurred while logging in: ", str(e))
 
 
 class MainMenuFrame(tk.Frame):
@@ -82,15 +92,33 @@ class MainMenuFrame(tk.Frame):
 
         tk.Button(
             self,
-            text="Inventory Management",
+            text="Inventory management",
             width=25,
             command=lambda: controller.show_frame(InventoryFrame),
         ).pack(pady=10)
         tk.Button(
             self,
-            text="User Management",
+            text="User management",
             width=25,
             command=lambda: controller.show_frame(UsersFrame),
+        ).pack(pady=10)
+        tk.Button(
+            self,
+            text="Audit log",
+            width=25,
+            command=lambda: controller.show_frame(AuditFrame),
+        ).pack(pady=10)
+        tk.Button(
+            self,
+            text="Alerts",
+            width=25,
+            command=lambda: controller.show_frame(AlertFrame),
+        ).pack(pady=10)
+        tk.Button(
+            self,
+            text="Manage account",
+            width=25,
+            command=lambda: controller.show_frame(AccountFrame),
         ).pack(pady=10)
         tk.Button(self, text="Logout", width=25, command=self.logout).pack(pady=10)
 
@@ -99,268 +127,334 @@ class MainMenuFrame(tk.Frame):
         self.controller.show_frame(LoginFrame)
 
 
+class ScrollableFrame(tk.Frame):
+    def __init__(self, master, **kwargs):
+        super().__init__(master, **kwargs)
+        canvas = tk.Canvas(self)
+        scrollbar = tk.Scrollbar(self, orient="vertical", command=canvas.yview)
+        self.scrollable_frame = tk.Frame(canvas)
+
+        # Update the scrollregion when the inner frame changes
+        self.scrollable_frame.bind(
+            "<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+
 class InventoryFrame(tk.Frame):
     def __init__(self, master, controller):
         super().__init__(master)
         self.controller = controller
+        self.selected_item = None  # Currently selected item name
+        self.all_items = []  # Will hold all inventory items (as tuples)
+        # Configure grid: left column (for buttons) and right column (for details & functions)
+        self.grid_columnconfigure(0, weight=1, uniform="col")
+        self.grid_columnconfigure(1, weight=3, uniform="col")
+        self.grid_rowconfigure(0, weight=3)
+        self.grid_rowconfigure(1, weight=1)
 
-        tk.Label(self, text="Inventory Management", font=("Arial", 18)).pack(pady=20)
+        # Left side: Item List and Bottom Buttons
+        self.left_frame = tk.Frame(self)
+        self.left_frame.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+        self.scrollable_frame = ScrollableFrame(self.left_frame)
+        self.scrollable_frame.pack(fill="both", expand=True)
 
-        # Listbox to display inventory items
-        self.inventory_text = scrolledtext.ScrolledText(
-            self, wrap=tk.WORD, width=100, height=20
+        # Search bar at top left
+        self.search_var = tk.StringVar()
+        self.search_var.trace("w", lambda name, index, mode: self.filter_items)
+        search_entry = tk.Entry(self.left_frame, textvariable=self.search_var)
+        search_entry.pack(fill="x", padx=2, pady=2)
+
+        self.left_bottom_frame = tk.Frame(self)
+        self.left_bottom_frame.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
+
+        self.add_item_button = tk.Button(
+            self.left_bottom_frame, text="Add Item", command=self.add_item
         )
-        self.inventory_text.pack(pady=10)
-
-        tk.Button(
-            self, text="Show all inventory", command=self.show_all_inventory
-        ).pack(pady=5)
-        tk.Button(self, text="Show item", command=self.show_item).pack(pady=5)
-        tk.Button(self, text="Update item", command=self.open_update_dialog).pack(
-            pady=5
-        )
-        tk.Button(self, text="Add new item", command=self.add_item).pack(pady=5)
-        tk.Button(self, text="Delete item", command=self.delete_item).pack(pady=5)
-        tk.Button(
-            self,
-            text="Back to Main Menu",
+        self.add_item_button.pack(side="left", padx=5, pady=5)
+        self.return_button = tk.Button(
+            self.left_bottom_frame,
+            text="Return to Menu",
             command=lambda: controller.show_frame(MainMenuFrame),
-        ).pack(pady=5)
+        )
+        self.return_button.pack(side="left", padx=5, pady=5)
 
-    def show_all_inventory(self):
-        self.inventory_text.config(state=tk.NORMAL)
-        self.inventory_text.delete("1.0", tk.END)
-        current_user = self.controller.current_user
-        if current_user:
-            try:
-                items = inventory.show_all_inventory(current_user)
-                if items:
-                    for item in items:
-                        # Format each inventory item into a multi-line string
-                        item_str = (
-                            f"Item Name: {item[0]}\n"
-                            f"Category: {item[1]}\n"
-                            f"Description: {item[2]}\n"
-                            f"Quantity: {item[3]}\n"
-                            f"Expiration Date: {item[4]}\n"
-                            f"Min Threshold: {item[5]}\n"
-                            f"Last Updated: {item[6]}\n"
-                            "----------------------------------------\n"
-                        )
-                        self.inventory_text.insert(tk.END, item_str)
-                else:
-                    self.inventory_text.insert(tk.END, "No inventory items found.\n")
-            except Exception as e:
-                messagebox.showerror("Inventory Error", str(e))
-        else:
-            messagebox.showerror("Error", "No current user. Please login again.")
-        # Disable editing after populating the text
-        self.inventory_text.config(state=tk.DISABLED)
+        # Right side: Item Details and Inventory Management Functions
+        self.right_top_frame = tk.Frame(self)
+        self.right_top_frame.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
+        self.item_details_text = tk.Text(
+            self.right_top_frame, wrap=tk.WORD, state="disabled"
+        )
+        self.item_details_text.pack(fill="both", expand=True)
 
-    def show_item(self):
-        self.inventory_text.config(state=tk.NORMAL)
-        self.inventory_text.delete("1.0", tk.END)
+        self.right_bottom_frame = tk.Frame(self)
+        self.right_bottom_frame.grid(row=1, column=1, sticky="nsew", padx=5, pady=5)
+
+        self.increase_button = tk.Button(
+            self.right_bottom_frame,
+            text="Increase Quantity",
+            command=self.increase_quantity,
+        )
+        self.increase_button.pack(side="left", padx=5, pady=5)
+
+        self.decrease_button = tk.Button(
+            self.right_bottom_frame,
+            text="Decrease Quantity",
+            command=self.decrease_quantity,
+        )
+        self.decrease_button.pack(side="left", padx=5, pady=5)
+
+        self.set_button = tk.Button(
+            self.right_bottom_frame, text="Set Quantity", command=self.set_quantity
+        )
+        self.set_button.pack(side="left", padx=5, pady=5)
+
+        self.description_button = tk.Button(
+            self.right_bottom_frame,
+            text="Set Description",
+            command=self.set_description,
+        )
+        self.description_button.pack(side="left", padx=5, pady=5)
+
+        self.expiration_button = tk.Button(
+            self.right_bottom_frame,
+            text="Set Expiration Date",
+            command=self.set_expiration,
+        )
+        self.expiration_button.pack(side="left", padx=5, pady=5)
+
+        self.threshold_button = tk.Button(
+            self.right_bottom_frame,
+            text="Set Minimum Threshold",
+            command=self.set_minimum_threshold,
+        )
+        self.threshold_button.pack(side="left", padx=5, pady=5)
+
+        self.delete_button = tk.Button(
+            self.right_bottom_frame,
+            text="Delete Item",
+            command=self.delete_item,
+        )
+        self.delete_button.pack(side="left", padx=5, pady=5)
+
+        self.refresh_details_button = tk.Button(
+            self.right_bottom_frame,
+            text="Refresh Details",
+            command=self.refresh_item_details,
+        )
+        self.refresh_details_button.pack(side="left", padx=5, pady=5)
+
+        self.selected_item = None  # will hold the name of the currently selected item
+
+    def tkraise(self, aboveThis=None):
+        # When this frame is raised, refresh the inventory list.
+        super().tkraise(aboveThis)
+        self.refresh_inventory_list()
+
+    def refresh_inventory_list(self):
         current_user = self.controller.current_user
-        if current_user:
-            try:
-                user_input = simpledialog.askstring(
-                    "Input", "Please enter the item name:"
+        try:
+            # Retrieve all items from the database and store them
+            items = inventory.show_all_inventory(current_user)
+            self.all_items = items if items else []
+            # Initially, display all items
+            self.populate_item_buttons(self.all_items)
+        except Exception as e:
+            messagebox.showerror("Inventory Error", str(e))
+
+    def filter_items(self):
+        query = self.search_var.get().lower()
+        # Filter self.all_items based on the query in the item name
+        filtered_items = [item for item in self.all_items if query in item[0].lower()]
+        self.populate_item_buttons(filtered_items)
+
+    def populate_item_buttons(self, items):
+        # Clear existing buttons
+        for widget in self.scrollable_frame.scrollable_frame.winfo_children():
+            widget.destroy()
+        # Create a button for each item in the provided list
+        if items:
+            for item in items:
+                item_name = item[0]
+                btn = tk.Button(
+                    self.scrollable_frame.scrollable_frame,
+                    text=item_name,
+                    command=lambda name=item_name: self.show_item_details(name),
                 )
-                item_contents = inventory.show_item(current_user, user_input)
-                if item_contents and len(item_contents) > 0:
-                    row = item_contents[0]
-                    item_str = (
-                        f"Item name: {row[1]} | Category: {row[2]} | Description: {row[3]} | "
-                        f"Quantity: {row[4]} | Expiration date: {row[5]} | "
-                        f"Minimum threshold: {row[6]} | Last updated: {row[7]}"
-                    )
-                    self.inventory_text.insert(tk.END, item_str)
-                else:
-                    self.inventory_text.insert(tk.END, "Item not found.")
-            except Exception as e:
-                messagebox.showerror("Inventory Error", str(e))
+                btn.pack(fill="x", padx=2, pady=2)
         else:
-            messagebox.showerror("Error", "No current user. Please login again.")
+            tk.Label(
+                self.scrollable_frame.scrollable_frame, text="No inventory items found."
+            ).pack()
 
-    def open_update_dialog(self):
-        current_user = self.controller.current_user
-        if current_user:
-            # You could ask the user for the item name or let them select it from a list
-            item_name = simpledialog.askstring(
-                "Update Item", "Enter item name to update:"
-            )
-            if item_name:
-                UpdateItemDialog(self, current_user, item_name)
+    def refresh_item_details(self):
+        # Refresh details of the currently selected item
+        if self.selected_item:
+            self.show_item_details(self.selected_item)
         else:
-            messagebox.showerror("Error", "No current user. Please login again.")
+            messagebox.showerror("Error", "No item selected.")
+
+    def show_item_details(self, item_name):
+        self.selected_item = item_name
+        current_user = self.controller.current_user
+        try:
+            item_data = inventory.show_item(current_user, item_name)
+            self.item_details_text.config(state="normal")
+            self.item_details_text.delete("1.0", tk.END)
+            if item_data and len(item_data) > 0:
+                item = item_data[0]
+                details = (
+                    f"Item Name: {item[1]}\n"
+                    f"Category: {item[2]}\n"
+                    f"Description: {item[3]}\n"
+                    f"Quantity: {item[4]}\n"
+                    f"Expiration Date: {item[5]}\n"
+                    f"Min Threshold: {item[6]}\n"
+                    f"Last Updated: {item[7]}\n"
+                )
+                self.item_details_text.insert(tk.END, details)
+            else:
+                self.item_details_text.insert(tk.END, "No details available.")
+            self.item_details_text.config(state="disabled")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
 
     def add_item(self):
-        self.inventory_text.config(state=tk.NORMAL)
-        self.inventory_text.delete("1.0", tk.END)
         current_user = self.controller.current_user
-        if current_user:
-            try:
-                item_name = simpledialog.askstring("Input", "Enter item to add: ")
-                if not validators.is_non_empty_string(item_name):
-                    raise ValueError("Item name must be a non-empty string")
-                item_category = simpledialog.askstring("Input", "Enter item category: ")
-                if not validators.is_non_empty_string(item_category):
-                    raise ValueError("Item category must be a non-empty string")
-                item_description = simpledialog.askstring(
-                    "Input", "Enter item description: "
-                )
-                initial_quantity_input = simpledialog.askinteger(
-                    "Input", "Enter the initial quantity: "
-                )
-                try:
-                    initial_quantity = int(initial_quantity_input)
-                except ValueError:
-                    raise ValueError("Initial quantity must be a positive integer")
-                if not validators.is_positive_int(initial_quantity):
-                    raise ValueError("Initial quantity must be a positive integer")
-                expiration_date = simpledialog.askstring(
-                    "Input", "Enter the expiration date (YYYY-MM-DD): "
-                )
-                if not validators.is_valid_date(expiration_date):
-                    raise ValueError("Expiration date must be in YYYY-MM-DD format")
-                minimum_threshold_input = simpledialog.askinteger(
-                    "Input", "Enter the minimum threshold: "
-                )
-                try:
-                    minimum_threshold = int(minimum_threshold_input)
-                except ValueError:
-                    raise ValueError("Minimum threshold must be a positive integer")
-                if not validators.is_positive_int(minimum_threshold):
-                    raise ValueError("Minimum threshold must be a positive integer")
-                inventory.add_inventory_item(
-                    current_user,
-                    item_name,
-                    item_category,
-                    item_description,
-                    initial_quantity,
-                    expiration_date,
-                    minimum_threshold,
-                )
-            except Exception as e:
-                messagebox.showerror("Inventory Error", str(e))
-        else:
-            messagebox.showerror("Error", "No current user. Please login again.")
+        # This method should open a dialog or new window to add an inventory item.
+        try:
+            item_name = simpledialog.askstring("Input", "Enter item to add: ")
+            if not validators.is_non_empty_string(item_name):
+                raise ValueError("Item name must be a non-empty string")
+            item_category = simpledialog.askstring("Input", "Enter item category: ")
+            if not validators.is_non_empty_string(item_category):
+                raise ValueError("Item category must be a non-empty string")
+            item_description = simpledialog.askstring(
+                "Input", "Enter item description (optional): "
+            )
+            initial_quantity = simpledialog.askinteger(
+                "Input", "Enter the initial quantity: "
+            )
+            if not validators.is_positive_int(initial_quantity):
+                raise ValueError("Initial quantity must be a positive integer")
+            expiration_date = simpledialog.askstring(
+                "Input", "Enter the expiration date (YYYY-MM-DD): "
+            )
+            if not validators.is_valid_date(expiration_date):
+                raise ValueError("Expiration date must be in YYYY-MM-DD format")
+            minimum_threshold = simpledialog.askinteger(
+                "Input", "Enter the minimum threshold: "
+            )
+            if not validators.is_positive_int(minimum_threshold):
+                raise ValueError("Minimum threshold must be a positive integer")
+            inventory.add_inventory_item(
+                current_user,
+                item_name,
+                item_category,
+                item_description,
+                initial_quantity,
+                expiration_date,
+                minimum_threshold,
+            )
+            self.refresh_inventory_list()
+            self.selected_item = item_name
+            self.refresh_item_details()
+        except Exception as e:
+            print(f"Error adding item: {e}")
 
     def delete_item(self):
-        self.inventory_text.config(state=tk.NORMAL)
-        self.inventory_text.delete("1.0", tk.END)
         current_user = self.controller.current_user
-        if current_user:
-            try:
-                item_name = simpledialog.askstring("Input", "Enter item to delete: ")
-                if not validators.is_non_empty_string(item_name):
-                    raise ValueError("Item name must be a non-empty string")
-                inventory.delete_item(current_user, item_name)
-            except Exception as e:
-                messagebox.showerror("Inventory Error", str(e))
-        else:
-            messagebox.showerror("Error", "No current user. Please login again.")
-
-
-class UpdateItemDialog(tk.Toplevel):
-    def __init__(self, parent, current_user, item_name):
-        super().__init__(parent)
-        self.title("Update Item")
-        self.current_user = current_user
-        self.item_name = item_name
-        self.geometry("400x300")
-        self.transient(parent)  # Set the window to be on top of the parent
-        self.grab_set()  # Make the dialog modal
-
-        tk.Label(self, text=f"Update '{item_name}'", font=("Arial", 14)).pack(pady=10)
-
-        # Dropdown for update options
-        self.update_type_var = tk.StringVar(value="Increase quantity")
-        options = [
-            "Increase quantity",
-            "Decrease quantity",
-            "Set quantity",
-            "Set expiration date",
-            "Set minimum threshold",
-            "Set description",
-        ]
-        tk.Label(self, text="Select update type:").pack(pady=5)
-        tk.OptionMenu(self, self.update_type_var, *options).pack(pady=5)
-
-        # Entry for new value
-        tk.Label(self, text="Enter new value:").pack(pady=5)
-        self.value_entry = tk.Entry(self)
-        self.value_entry.pack(pady=5)
-
-        # Action buttons
-        button_frame = tk.Frame(self)
-        button_frame.pack(pady=10)
-        tk.Button(button_frame, text="Update", command=self.perform_update).pack(
-            side=tk.LEFT, padx=5
-        )
-        tk.Button(button_frame, text="Cancel", command=self.destroy).pack(
-            side=tk.LEFT, padx=5
-        )
-
-    def perform_update(self):
-        update_type = self.update_type_var.get()
-        new_value = self.value_entry.get()
-
         try:
-            if update_type == "Increase quantity":
-                quantity = int(new_value)
-                inventory.increase_item(self.current_user, self.item_name, quantity)
-            elif update_type == "Decrease quantity":
-                quantity = int(new_value)
-                inventory.decrease_item(self.current_user, self.item_name, quantity)
-            elif update_type == "Set quantity":
-                quantity = int(new_value)
-                inventory.set_quantity(self.current_user, self.item_name, quantity)
-            elif update_type == "Set expiration date":
-                # Here you might want to validate the date format
-                inventory.set_expiration(self.current_user, self.item_name, new_value)
-            elif update_type == "Set minimum threshold":
-                threshold = int(new_value)
-                inventory.set_minimum_threshold(
-                    self.current_user, self.item_name, threshold
-                )
-            elif update_type == "Set description":
-                inventory.set_description(self.current_user, self.item_name, new_value)
-            else:
-                messagebox.showerror("Error", "Unknown update type.")
-                return
-
-            messagebox.showinfo("Success", f"{self.item_name} updated successfully!")
-            self.destroy()  # Close the dialog
+            if messagebox.askyesno(
+                "Delete item", "Do you really want to delete this item?"
+            ):
+                inventory.delete_item(current_user, self.selected_item)
+            self.refresh_inventory_list()
+            self.refresh_item_details()
         except Exception as e:
-            messagebox.showerror("Update Error", str(e))
+            print(f"Error deleting item: {e}")
+
+    def increase_quantity(self):
+        current_user = self.controller.current_user
+        try:
+            quantity = simpledialog.askinteger("Input", "Increase by: ")
+            if not validators.is_positive_int(quantity):
+                raise TypeError("Quantity must be a positive integer")
+            inventory.increase_item(current_user, self.selected_item, quantity)
+            self.refresh_inventory_list()
+            self.refresh_item_details()
+        except Exception as e:
+            print(f"An error occurred while increasing item quantity: {e}")
+
+    def decrease_quantity(self):
+        current_user = self.controller.current_user
+        try:
+            quantity = simpledialog.askinteger("Input", "Decrease by: ")
+            if not validators.is_positive_int(quantity):
+                raise TypeError("Quantity must be a positive integer")
+            inventory.decrease_item(current_user, self.selected_item, quantity)
+            self.refresh_inventory_list()
+            self.refresh_item_details()
+        except Exception as e:
+            print(f"An error occurred while decreasing item quantity: {e}")
+
+    def set_quantity(self):
+        current_user = self.controller.current_user
+        try:
+            quantity = simpledialog.askinteger("Input", "Set quantity to: ")
+            if not validators.is_positive_int(quantity):
+                raise TypeError("Quantity must be a positive integer")
+            inventory.set_quantity(current_user, self.selected_item, quantity)
+            self.refresh_inventory_list()
+            self.refresh_item_details()
+        except Exception as e:
+            print(f"An error occurred while setting item quantity: {e}")
+
+    def set_expiration(self):
+        current_user = self.controller.current_user
+        try:
+            expiration = simpledialog.askstring("Input", "New expiration date: ")
+            if not validators.is_valid_date(expiration):
+                raise TypeError("Date must be in YYYY-MM-DD format.")
+            inventory.set_expiration(current_user, self.selected_item, expiration)
+            self.refresh_inventory_list()
+            self.refresh_item_details()
+        except Exception as e:
+            print(f"An error occurred while setting item expiration date: {e}")
+
+    def set_description(self):
+        current_user = self.controller.current_user
+        try:
+            description = simpledialog.askstring("Input", "New description: ")
+            inventory.set_description(current_user, self.selected_item, description)
+            self.refresh_inventory_list()
+            self.refresh_item_details()
+        except Exception as e:
+            print(f"An error occurred while setting item description: {e}")
+
+    def set_minimum_threshold(self):
+        current_user = self.controller.current_user
+        try:
+            quantity = simpledialog.askinteger("Input", "Set minimum threshold to: ")
+            if not validators.is_positive_int(quantity):
+                raise TypeError("Quantity must be a positive integer")
+            inventory.set_minimum_threshold(current_user, self.selected_item, quantity)
+            self.refresh_inventory_list()
+            self.refresh_item_details()
+        except Exception as e:
+            print(f"An error occurred while setting item minimum threshold: {e}")
 
 
 class UsersFrame(tk.Frame):
-    def __init__(self, master, controller):
-        super().__init__(master)
-        self.controller = controller
-        tk.Label(self, text="User Management", font=("Arial", 18)).pack(pady=20)
-
-        # Listbox to display users
-        self.users_listbox = tk.Listbox(self, width=100)
-        self.users_listbox.pack(pady=10)
-
-        tk.Button(self, text="View user", command=self.view_user).pack(pady=5)
-        tk.Button(self, text="Change user role", command=self.change_user_role).pack(
-            pady=5
-        )
-        tk.Button(self, text="Add user", command=self.add_user).pack(pady=5)
-        tk.Button(self, text="Delete user", command=self.delete_user).pack(pady=5)
-        tk.Button(self, text="Show All Users", command=self.show_all_users).pack(pady=5)
-        tk.Button(
-            self,
-            text="Back to Main Menu",
-            command=lambda: controller.show_frame(MainMenuFrame),
-        ).pack(pady=5)
-
+    # TODO restructure user interface
     def show_all_users(self):
-        self.users_listbox.delete(0, tk.END)
+        self.user_text.config(state=tk.NORMAL)
+        self.user_text.delete("1.0", tk.END)
         current_user = self.controller.current_user
         if current_user:
             try:
@@ -369,28 +463,116 @@ class UsersFrame(tk.Frame):
                     for user in users_list:
                         # Each user is a tuple: (username, role, email, created_at, updated_at)
                         user_str = (
-                            f"{user[0]} | {user[1]} | {user[2]} | "
-                            f"Created: {user[3]} | Updated: {user[4]}"
+                            f"User ID: {user[0]}\n"
+                            f"Username: {user[1]}\n"
+                            f"Role: {user[2]}\n"
+                            f"Email: {user[3]}\n"
+                            f"Created: {user[4]}\n"
+                            f"Updated: {user[5]}\n"
+                            "----------------------------------------\n"
                         )
-                        self.users_listbox.insert(tk.END, user_str)
+                        self.user_text.insert(tk.END, user_str)
                 else:
-                    self.users_listbox.insert(tk.END, "No users found.")
+                    self.user_text.insert(tk.END, "No users found.")
+            except Exception as e:
+                messagebox.showerror(
+                    "An error occurred while retrieving all users: ", str(e)
+                )
+        else:
+            messagebox.showerror("Error", "No current user. Please login again.")
+
+    def view_user(self):
+        self.user_text.config(state=tk.NORMAL)
+        self.user_text.delete("1.0", tk.END)
+        current_user = self.controller.current_user
+        if current_user:
+            try:
+                username = simpledialog.askstring("Input", "Enter username to view: ")
+                if not validators.is_non_empty_string(username):
+                    raise ValueError("Username must be a non-empty string.")
+                user_contents = users.view_user(current_user, username)
+                if user_contents and len(user_contents) > 0:
+                    user = user_contents[0]
+                    user_str = (
+                        f"User ID: {user[0]}\n"
+                        f"Username: {user[1]}\n"
+                        f"Role: {user[2]}\n"
+                        f"Email: {user[3]}\n"
+                        f"Created: {user[4]}\n"
+                        f"Updated: {user[5]}\n"
+                        "----------------------------------------\n"
+                    )
+                    self.user_text.insert(tk.END, user_str)
+                else:
+                    self.user_text.insert(tk.END, "No users found.")
+            except Exception as e:
+                messagebox.showerror(
+                    "An error occurred while retrieving user " + username + ": ", str(e)
+                )
+        else:
+            messagebox.showerror("Error", "No current user. Please login again.")
+
+    def change_user_role(self):
+        self.user_text.config(state=tk.NORMAL)
+        self.user_text.delete("1.0", tk.END)
+        current_user = self.controller.current_user
+        if current_user:
+            try:
+                username = simpledialog.askstring("Input", "Enter username to change: ")
+                if not validators.is_non_empty_string(username):
+                    raise ValueError("Username must be a non-empty string.")
+                new_role = simpledialog.askstring("Input", "Enter new role: ")
+                if not validators.is_valid_role(new_role):
+                    raise ValueError("Invalid role.")
+                users.change_user_role(current_user, username, new_role)
+                self.user_text.insert(
+                    "User " + username + " role has been updated to " + new_role
+                )
+            except Exception as e:
+                messagebox.showerror(
+                    "An error occurred while updated user role: ", str(e)
+                )
+        else:
+            messagebox.showerror("Error", "No current user. Please login again.")
+
+    def delete_user(self):
+        self.user_text.config(state=tk.NORMAL)
+        self.user_text.delete("1.0", tk.END)
+        current_user = self.controller.current_user
+        if current_user:
+            try:
+                username = simpledialog.askstring("Input", "Enter username to delete: ")
+                if not validators.is_non_empty_string(username):
+                    raise ValueError("Username must be a non-empty string.")
+                users.delete_user(current_user, username)
             except Exception as e:
                 messagebox.showerror("User Error", str(e))
         else:
             messagebox.showerror("Error", "No current user. Please login again.")
 
-    def view_user(self):
-        pass
-
-    def change_user_role(self):
-        pass
-
-    def delete_user(self):
-        pass
-
     def add_user(self):
-        pass
+        self.user_text.config(state=tk.NORMAL)
+        self.user_text.delete("1.0", tk.END)
+        current_user = self.controller.current_user
+        if current_user:
+            try:
+                username = simpledialog.askstring("Input", "Username: ")
+                if not validators.is_non_empty_string(username):
+                    raise ValueError("Username must be a non-empty string.")
+                password = simpledialog.askstring("Input", "Password: ")
+                if not validators.is_non_empty_string(password):
+                    raise ValueError("Password must be a non-empty string.")
+                role = simpledialog.askstring("Input", "User role: ")
+                if not validators.is_valid_role(role):
+                    raise ValueError("Invalid role.")
+                email = simpledialog.askstring("Input", "User email: ")
+                if not validators.is_valid_email(email):
+                    raise ValueError("Email must be in valid format.")
+                users.add_user(current_user, username, password, role, email)
+            except Exception as e:
+                messagebox.showerror("An error occurred while adding user: ", str(e))
+        else:
+            messagebox.showerror("Error", "No current user. Please login again.")
 
 
 class AuditFrame(tk.Frame):
@@ -401,23 +583,242 @@ class AuditFrame(tk.Frame):
         tk.Label(self, text="Audit Log", font=("Arial", 18)).pack(pady=20)
 
         # Listbox to display inventory items
-        self.inventory_text = scrolledtext.ScrolledText(
+        self.audit_text = scrolledtext.ScrolledText(
             self, wrap=tk.WORD, width=100, height=20
         )
-        self.inventory_text.pack(pady=10)
+        self.audit_text.pack(pady=10)
 
-        tk.Button(self, text="View recent logs", command=self.show_all_inventory).pack(
+        tk.Button(self, text="View recent logs", command=self.view_recent_logs).pack(
             pady=5
         )
-        tk.Button(self, text="Export to .txt file", command=self.show_item).pack(pady=5)
+        tk.Button(
+            self, text="Export to .txt file", command=self.export_logs_to_text
+        ).pack(pady=5)
         tk.Button(
             self,
-            text="Back to Main Menu",
+            text="Exit to main menu",
             command=lambda: controller.show_frame(MainMenuFrame),
         ).pack(pady=5)
 
     def view_recent_logs(self):
-        pass
+        self.audit_text.config(state=tk.NORMAL)
+        self.audit_text.delete("1.0", tk.END)
+        current_user = self.controller.current_user
+        if current_user:
+            try:
+                number_of_entries_input = simpledialog.askinteger(
+                    "Input", "Enter number of recent logs to pull: "
+                )
+                if not validators.is_positive_int(number_of_entries_input):
+                    raise ValueError("Number of entries must be a positive integer.")
+                log_entries = audit_log.pull_audit_log(
+                    current_user, number_of_entries_input
+                )
+                for entry in log_entries:
+                    audit_str = (
+                        f"Log ID: {entry[0]}\n"
+                        f"User: {entry[1]}\n"
+                        f"Updated object: {entry[2]}\n"
+                        f"Action: {entry[3]}\n"
+                        f"Details: {entry[5]}\n"
+                        f"Time: {entry[4]}\n"
+                        "----------------------------------------\n"
+                    )
+                    self.audit_text.insert(tk.END, audit_str)
+            except Exception as e:
+                messagebox.showerror(
+                    "An error occurred while retrieving audit logs: ", str(e)
+                )
+        else:
+            messagebox.showerror("Error", "No current user. Please login again.")
+
+    def export_logs_to_text(self):
+        self.audit_text.config(state=tk.NORMAL)
+        self.audit_text.delete("1.0", tk.END)
+        current_user = self.controller.current_user
+        try:
+            audit_log.export_to_txt(current_user)
+            self.audit_text.insert(
+                tk.END, "Audit log has been exported as a .txt file."
+            )
+        except Exception as e:
+            messagebox.showerror(
+                f"An error occurred while exporting the audit log: {e}"
+            )
+
+
+class AlertFrame(tk.Frame):
+    def __init__(self, master, controller):
+        super().__init__(master)
+        self.controller = controller
+
+        tk.Label(self, text="Alerts", font=("Arial", 18)).pack(pady=20)
+
+        # Listbox to display inventory items
+        self.alert_text = scrolledtext.ScrolledText(
+            self, wrap=tk.WORD, width=100, height=20
+        )
+        self.alert_text.pack(pady=10)
+
+        tk.Button(
+            self, text="View expired items", command=self.view_expired_items
+        ).pack(pady=5)
+        tk.Button(
+            self, text="View low inventory", command=self.view_low_inventory
+        ).pack(pady=5)
+        tk.Button(
+            self,
+            text="Exit to main menu",
+            command=lambda: controller.show_frame(MainMenuFrame),
+        ).pack(pady=5)
+
+    def view_expired_items(self):
+        self.alert_text.config(state=tk.NORMAL)
+        self.alert_text.delete("1.0", tk.END)
+        try:
+            expired_inventory = alerts.search_for_expiration()
+            if expired_inventory:
+                for item in expired_inventory:
+                    alert_str = (
+                        f"Item: {item[0]}\n"
+                        f"Quantity: {item[1]}\n"
+                        f"Expiration date: {item[2]}\n"
+                        "----------------------------------------\n"
+                    )
+                    self.alert_text.insert(tk.END, alert_str)
+            else:
+                self.alert_text.insert(tk.END, "There is no expired inventory.")
+        except Exception as e:
+            messagebox.showerror(
+                f"An error occurred while retrieving expired inventory: {e}"
+            )
+
+    def view_low_inventory(self):
+        self.alert_text.config(state=tk.NORMAL)
+        self.alert_text.delete("1.0", tk.END)
+        try:
+            low_inventory = alerts.search_for_low_quantity()
+            if low_inventory:
+                for item in low_inventory:
+                    alert_str = (
+                        f"Item: {item[0]}\n"
+                        f"Quantity: {item[1]}\n"
+                        f"Minimum threshold: {item[2]}\n"
+                        "----------------------------------------\n"
+                    )
+                    self.alert_text.insert(tk.END, alert_str)
+            else:
+                self.alert_text.insert(tk.END, "There is no low inventory.")
+        except Exception as e:
+            messagebox.showerror(
+                f"An error occurred while retrieving low inventory: {e}"
+            )
+
+
+class AccountFrame(tk.Frame):
+    def __init__(self, master, controller):
+        super().__init__(master)
+        self.controller = controller
+
+        tk.Label(self, text="Manage Account", font=("Arial", 18)).pack(pady=20)
+
+        # Listbox to display inventory items
+        self.account_text = scrolledtext.ScrolledText(
+            self, wrap=tk.WORD, width=100, height=20
+        )
+        self.account_text.pack(pady=10)
+
+        tk.Button(self, text="Change username", command=self.change_username).pack(
+            pady=5
+        )
+        tk.Button(self, text="Change password", command=self.change_password).pack(
+            pady=5
+        )
+        tk.Button(self, text="Change email", command=self.change_email).pack(pady=5)
+        tk.Button(
+            self,
+            text="Exit to main menu",
+            command=lambda: controller.show_frame(MainMenuFrame),
+        ).pack(pady=5)
+
+    def change_username(self):
+        self.account_text.config(state=tk.NORMAL)
+        self.account_text.delete("1.0", tk.END)
+        current_user = self.controller.current_user
+        try:
+            current_password = simpledialog.askstring(
+                "Input", "Verify your current password: "
+            )
+            login_check = users.login(current_user.username, current_password)
+            if (login_check is not None) and (login_check is not False):
+                new_username = simpledialog.askstring(
+                    "Input", "Please enter your new username: "
+                )
+                if not validators.is_non_empty_string(new_username):
+                    raise TypeError("New username must be non-empty string.")
+                reentered = simpledialog.askstring(
+                    "Input", "Reenter your new username: "
+                )
+                if reentered == new_username:
+                    users.change_user_username(current_user, new_username)
+                else:
+                    self.account_text.insert(tk.END, "Usernames did not match.")
+            else:
+                self.account_text.insert(tk.END, "Password was not valid.")
+        except Exception as e:
+            messagebox.showerror(f"An error occurred while changing username: {e}")
+
+    def change_password(self):
+        self.account_text.config(state=tk.NORMAL)
+        self.account_text.delete("1.0", tk.END)
+        current_user = self.controller.current_user
+        try:
+            current_password = simpledialog.askstring(
+                "Input", "Verify your current password: "
+            )
+            login_check = users.login(current_user.username, current_password)
+            if (login_check is not None) and (login_check is not False):
+                new_password = simpledialog.askstring(
+                    "Input", "Please enter your new password: "
+                )
+                if not validators.is_non_empty_string(new_password):
+                    raise TypeError("New password must be non-empty string.")
+                reentered = simpledialog.askstring(
+                    "Input", "Reenter your new password: "
+                )
+                if reentered == new_password:
+                    users.change_user_password(current_user, new_password)
+                else:
+                    self.account_text.insert(tk.END, "Passwords did not match.")
+            else:
+                self.account_text.insert(tk.END, "Password was not valid.")
+        except Exception as e:
+            messagebox.showerror(f"An error occurred while changing password: {e}")
+
+    def change_email(self):
+        self.account_text.config(state=tk.NORMAL)
+        self.account_text.delete("1.0", tk.END)
+        current_user = self.controller.current_user
+        try:
+            current_password = simpledialog.askstring(
+                "Input", "Verify your current password: "
+            )
+            login_check = users.login(current_user.username, current_password)
+            if (login_check is not None) and (login_check is not False):
+                new_email = simpledialog.askstring(
+                    "Input", "Please enter your new email: "
+                )
+                if not validators.is_valid_email(new_email):
+                    raise TypeError("New email must be valid.")
+                reentered = simpledialog.askstring("Input", "Reenter your new email: ")
+                if reentered == new_email:
+                    users.change_user_email(current_user, new_email)
+                else:
+                    self.account_text.insert(tk.END, "Emails did not match.")
+            else:
+                self.account_text.insert(tk.END, "Email was not valid.")
+        except Exception as e:
+            messagebox.showerror(f"An error occurred while changing email: {e}")
 
 
 if __name__ == "__main__":

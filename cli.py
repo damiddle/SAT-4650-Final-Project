@@ -372,8 +372,8 @@ def users_menu(current_user):
                 if user_contents and len(user_contents) > 0:
                     row = user_contents[0]
                     print(
-                        f"User ID: {row[0]} | Username: {row[1]} | Role: {row[3]} | "
-                        f"Email: {row[4]} | Registered: {row[5]} | Last updated: {row[6]}"
+                        f"User ID: {row[0]} | Username: {row[1]} | Role: {row[2]} | "
+                        f"Email: {row[3]} | Registered: {row[4]} | Last updated: {row[5]}"
                     )
                 else:
                     print("User not found.")
@@ -424,8 +424,8 @@ def users_menu(current_user):
                 table_contents = users.show_all_users(current_user)
                 for row in table_contents:
                     print(
-                        f"Username: {row[0]} | Role: {row[1]} | Email: {row[2]} | "
-                        f"Created at: {row[3]} | Last updated: {row[4]}"
+                        f"User ID: {row[0]} | Username: {row[1]} | Role: {row[2]} | "
+                        f"Email: {row[3]} | Registered: {row[4]} | Last updated: {row[5]}"
                     )
             except Exception as e:
                 print(f"Error displaying all users: {e}")
