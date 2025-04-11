@@ -1,3 +1,9 @@
+"""
+Module for validating input data.
+
+Provides helper functions to validate strings, integers, emails, roles, and dates.
+"""
+
 import re
 import os
 import ast
@@ -10,26 +16,28 @@ VALID_ROLES = ast.literal_eval(os.getenv("VALID_USER_ROLES"))
 
 
 def is_non_empty_string(value):
-    """Checks for non-empty string
+    """Checks if the given value is a non-empty string.
 
     Args:
-        value (str): String to check
+        value (Any): The value to check.
 
     Returns:
-        Boolean: False if empty string
+        bool: True if value is a non-empty string, False otherwise.
     """
+
     return isinstance(value, str) and value.strip() != ""
 
 
 def is_positive_int(value):
-    """Checks for a positive integer
+    """Checks if the value is a positive integer (zero or greater).
 
     Args:
-        value (int): Integer to check
+        value (Any): The value to check.
 
     Returns:
-        bool: False if not integer or positive
+        bool: True if value is a positive integer, False otherwise.
     """
+
     try:
         return int(value) >= 0
     except (TypeError, ValueError):
@@ -37,40 +45,44 @@ def is_positive_int(value):
 
 
 def is_valid_email(email):
-    """Checks email is in correct format
+    """Validates whether an email address is in the proper format.
 
     Args:
-        email (str): Email address
+        email (str): The email address to validate.
 
     Returns:
-        bool: False if email is not valid
+        bool: True if the email matches the expected pattern, False otherwise.
     """
+
     return re.match(r"[^@]+@[^@]+\.[^@]+", email) is not None
 
 
 def is_valid_role(role):
-    """Checks if role is valid
+    """Checks if the role is one of the allowed roles.
 
     Args:
-        role (str): Role to check
+        role (str): The role to validate.
 
     Returns:
-        bool: False if not a valid role
+        bool: True if role is in the VALID_ROLES list, False otherwise.
     """
+
     return role in VALID_ROLES
 
 
 def is_valid_date(date_string):
-    """Checks if date is valid format
+    """Validates a date string against the YYYY-MM-DD format.
 
     Args:
-        date_string (str): Date to check
+        date_string (str): The date string to validate.
 
     Returns:
-        bool: False if not string or in correct format
+        bool: True if date_string is valid, False otherwise.
     """
+
     try:
         datetime.strptime(date_string, "%Y-%m-%d")
+
         return True
     except (ValueError, TypeError):
         return False

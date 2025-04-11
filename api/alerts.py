@@ -1,41 +1,57 @@
+"""
+Module for inventory alerts.
+
+Provides functions to search for expired inventory items and items with low quantities.
+"""
+
 import sys
 import os
 
+# Append the parent directory to the path.
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 import db_connection
 
 
 def search_for_expiration():
-    """Creates a list of expired inventory items
+    """Searches for inventory items whose expiration date has passed.
 
     Returns:
-        List of tuples: Returns a list of each item that is expired, each item is displayed in a tuple with its name, current quantity, and expiration date
+        list: A list of tuples containing item name, quantity, and expiration date.
+              Returns an empty list if no expired items are found or an error occurs.
     """
+
     try:
         expired_inventory = db_connection.execute_query(
             "SELECT item_name, quantity, expiration_date FROM inventory WHERE expiration_date IS NOT NULL AND expiration_date < CURDATE() ORDER BY expiration_date ASC",
             None,
             False,
         )
+
         return expired_inventory if expired_inventory is not None else []
     except Exception as e:
         print(f"An error occurred while searching for expired inventory: {e}")
+
         return []
 
 
 def search_for_low_quantity():
-    """Creates a list of all inventory that is less than the minimum threshold
+    """Searches for inventory items with quantity below their minimum threshold.
 
     Returns:
-        List of tuples: Returns a list of each low inventory item, which is created as a tuple with its name, current quantity, and minimum threshold value
+        list: A list of tuples containing item name, current quantity, and minimum threshold.
+              Returns an empty list if no such items are found or an error occurs.
     """
+
     try:
         low_inventory = db_connection.execute_query(
             "SELECT item_name, quantity, min_threshold FROM inventory WHERE min_threshold IS NOT NULL AND quantity < min_threshold ORDER BY quantity ASC",
             None,
             False,
         )
+
         return low_inventory if low_inventory is not None else []
     except Exception as e:
         print(f"An error occurred while searching for low inventory: {e}")
+
         return []
