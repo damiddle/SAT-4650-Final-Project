@@ -113,48 +113,95 @@ class MainMenuFrame(tk.Frame):
 
         tk.Label(self, text="Main Menu", font=("Arial", 18)).pack(pady=20)
 
-        tk.Button(
+        self.inventory_button = tk.Button(
             self,
             text="Inventory management",
             width=25,
             command=lambda: controller.show_frame(InventoryFrame),
-        ).pack(pady=10)
+        )
 
-        tk.Button(
+        self.users_button = tk.Button(
             self,
             text="User management",
             width=25,
             command=lambda: controller.show_frame(UsersFrame),
-        ).pack(pady=10)
+        )
 
-        tk.Button(
+        self.audit_button = tk.Button(
             self,
             text="Audit log",
             width=25,
             command=lambda: controller.show_frame(AuditFrame),
-        ).pack(pady=10)
+        )
 
-        tk.Button(
+        self.alerts_button = tk.Button(
             self,
             text="Alerts",
             width=25,
             command=lambda: controller.show_frame(AlertFrame),
-        ).pack(pady=10)
+        )
 
-        tk.Button(
+        self.account_button = tk.Button(
             self,
             text="Manage account",
             width=25,
             command=lambda: controller.show_frame(AccountFrame),
-        ).pack(pady=10)
+        )
 
-        tk.Button(self, text="Logout", width=25, command=self.logout).pack(pady=10)
+        self.logout_button = tk.Button(
+            self, text="Logout", width=25, command=self.logout
+        )
+
+        self.inventory_button.pack(pady=10)
+        self.users_button.pack(pady=10)
+        self.audit_button.pack(pady=10)
+        self.alerts_button.pack(pady=10)
+        self.account_button.pack(pady=10)
+        self.logout_button.pack(pady=10)
 
     def logout(self):
         """Logs out the current user and returns to the login frame."""
 
         self.controller.current_user = None
         self.controller.show_frame(LoginFrame)
+
+    def update_menu_visibility(self):
+        """Update which buttons are shown based on the logged-in user's role."""
+        role = self.controller.current_user.role
+
+        if role == "Admin":
+            pass
+
+        elif role == "Leadership":
+            self.users_button.pack_forget()
+            self.audit_button.pack_forget()
+
+        elif role == "General Responder":
+            self.users_button.pack_forget()
+            self.audit_button.pack_forget()
+            self.alerts_button.pack_forget()
+
+        elif role == "Community Member":
+            self.users_button.pack_forget()
+            self.audit_button.pack_forget()
+            self.alerts_button.pack_forget()
+            self.inventory_button.pack_forget()
+
+        else:
+            self.users_button.pack_forget()
+            self.audit_button.pack_forget()
+            self.alerts_button.pack_forget()
+            self.inventory_button.pack_forget()
+            self.account_button.pack_forget()
+
+            messagebox.showerror("Something went wrong, user has no valid role")
+            self.logout()
+
+    def tkraise(self, aboveThis=None):
+        """Override tkraise to update visibility each time this frame is shown."""
+        super().tkraise(aboveThis)
+        if self.controller.current_user:
+            self.update_menu_visibility()
 
 
 class ScrollableFrame(tk.Frame):
@@ -196,7 +243,8 @@ class InventoryFrame(tk.Frame):
         self.scrollable_frame.pack(fill="both", expand=True)
 
         self.search_var = tk.StringVar()
-        self.search_var.trace("w", lambda name, index, mode: self.filter_items)
+        # Properly invoke the filter callback on change
+        self.search_var.trace("w", lambda *args: self.filter_items())
         search_entry = tk.Entry(self.left_frame, textvariable=self.search_var)
         search_entry.pack(fill="x", padx=2, pady=2)
 
@@ -206,14 +254,12 @@ class InventoryFrame(tk.Frame):
         self.add_item_button = tk.Button(
             self.left_bottom_frame, text="Add Item", command=self.add_item
         )
-        self.add_item_button.pack(side="left", padx=5, pady=5)
 
         self.return_button = tk.Button(
             self.left_bottom_frame,
             text="Return to Menu",
             command=lambda: controller.show_frame(MainMenuFrame),
         )
-        self.return_button.pack(side="left", padx=5, pady=5)
 
         self.right_top_frame = tk.Frame(self)
         self.right_top_frame.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
@@ -226,67 +272,74 @@ class InventoryFrame(tk.Frame):
         self.right_bottom_frame = tk.Frame(self)
         self.right_bottom_frame.grid(row=1, column=1, sticky="nsew", padx=5, pady=5)
 
+        # Inventory actions
         self.increase_button = tk.Button(
             self.right_bottom_frame,
             text="Increase Quantity",
             command=self.increase_quantity,
         )
-        self.increase_button.pack(side="left", padx=5, pady=5)
 
         self.decrease_button = tk.Button(
             self.right_bottom_frame,
             text="Decrease Quantity",
             command=self.decrease_quantity,
         )
-        self.decrease_button.pack(side="left", padx=5, pady=5)
 
         self.set_button = tk.Button(
             self.right_bottom_frame, text="Set Quantity", command=self.set_quantity
         )
-        self.set_button.pack(side="left", padx=5, pady=5)
 
         self.description_button = tk.Button(
             self.right_bottom_frame,
             text="Set Description",
             command=self.set_description,
         )
-        self.description_button.pack(side="left", padx=5, pady=5)
 
         self.expiration_button = tk.Button(
             self.right_bottom_frame,
             text="Set Expiration Date",
             command=self.set_expiration,
         )
-        self.expiration_button.pack(side="left", padx=5, pady=5)
 
         self.threshold_button = tk.Button(
             self.right_bottom_frame,
             text="Set Minimum Threshold",
             command=self.set_minimum_threshold,
         )
-        self.threshold_button.pack(side="left", padx=5, pady=5)
 
         self.delete_button = tk.Button(
             self.right_bottom_frame,
             text="Delete Item",
             command=self.delete_item,
         )
-        self.delete_button.pack(side="left", padx=5, pady=5)
 
         self.refresh_details_button = tk.Button(
             self.right_bottom_frame,
             text="Refresh Details",
             command=self.refresh_item_details,
         )
+
+        self.add_item_button.pack(side="left", padx=5, pady=5)
+        self.return_button.pack(side="left", padx=5, pady=5)
+
+        self.increase_button.pack(side="left", padx=5, pady=5)
+        self.decrease_button.pack(side="left", padx=5, pady=5)
+        self.set_button.pack(side="left", padx=5, pady=5)
+        self.description_button.pack(side="left", padx=5, pady=5)
+        self.expiration_button.pack(side="left", padx=5, pady=5)
+        self.threshold_button.pack(side="left", padx=5, pady=5)
+        self.delete_button.pack(side="left", padx=5, pady=5)
+
         self.refresh_details_button.pack(side="left", padx=5, pady=5)
 
         self.selected_item = None
 
     def tkraise(self, aboveThis=None):
-        """Overrides tkraise to refresh the inventory list when the frame is raised."""
+        """Overrides tkraise to refresh the inventory list when the frame is raised and update button visibility."""
 
         super().tkraise(aboveThis)
         self.refresh_inventory_list()
+        self.update_button_visibility()
 
     def refresh_inventory_list(self):
         """Fetches and displays the list of inventory items."""
@@ -299,6 +352,31 @@ class InventoryFrame(tk.Frame):
             self.populate_item_buttons(self.all_items)
         except Exception as e:
             messagebox.showerror("Inventory Error", str(e))
+
+    def update_button_visibility(self):
+        """Allows filtering of inventory actions by role"""
+        role = self.controller.current_user.role
+
+        if role == "Admin":
+            pass
+
+        elif role == "Leadership":
+            self.add_item_button.pack_forget()
+            self.delete_button.pack_forget()
+
+        elif role == "General Responder":
+            self.add_item_button.pack_forget()
+            self.delete_button.pack_forget()
+            self.increase_button.pack_forget()
+            self.decrease_button.pack_forget()
+            self.set_button.pack_forget()
+            self.description_button.pack_forget()
+            self.expiration_button.pack_forget()
+            self.threshold_button.pack_forget()
+
+        else:
+            messagebox.showerror("Something went wrong, user has no valid role")
+            self.controller.show_frame(MainMenuFrame)
 
     def filter_items(self):
         """Filters the displayed item buttons based on the search query."""
@@ -425,7 +503,7 @@ class InventoryFrame(tk.Frame):
             self.selected_item = item_name
             self.refresh_item_details()
         except Exception as e:
-            print(f"Error adding item: {e}")
+            messagebox.showerror(f"Error adding item: {e}")
 
     def delete_item(self):
         """Deletes the currently selected inventory item."""
@@ -440,7 +518,7 @@ class InventoryFrame(tk.Frame):
             self.refresh_inventory_list()
             self.refresh_item_details()
         except Exception as e:
-            print(f"Error deleting item: {e}")
+            messagebox.showerror(f"Error deleting item: {e}")
 
     def increase_quantity(self):
         """Increases the quantity of the selected inventory item."""
@@ -457,7 +535,9 @@ class InventoryFrame(tk.Frame):
             self.refresh_inventory_list()
             self.refresh_item_details()
         except Exception as e:
-            print(f"An error occurred while increasing item quantity: {e}")
+            messagebox.showerror(
+                f"An error occurred while increasing item quantity: {e}"
+            )
 
     def decrease_quantity(self):
         """Decreases the quantity of the selected inventory item."""
@@ -474,7 +554,9 @@ class InventoryFrame(tk.Frame):
             self.refresh_inventory_list()
             self.refresh_item_details()
         except Exception as e:
-            print(f"An error occurred while decreasing item quantity: {e}")
+            messagebox.showerror(
+                f"An error occurred while decreasing item quantity: {e}"
+            )
 
     def set_quantity(self):
         """Sets the quantity of the selected inventory item to a specific value."""
@@ -491,7 +573,7 @@ class InventoryFrame(tk.Frame):
             self.refresh_inventory_list()
             self.refresh_item_details()
         except Exception as e:
-            print(f"An error occurred while setting item quantity: {e}")
+            messagebox.showerror(f"An error occurred while setting item quantity: {e}")
 
     def set_expiration(self):
         """Updates the expiration date for the selected inventory item."""
@@ -508,7 +590,9 @@ class InventoryFrame(tk.Frame):
             self.refresh_inventory_list()
             self.refresh_item_details()
         except Exception as e:
-            print(f"An error occurred while setting item expiration date: {e}")
+            messagebox.showerror(
+                f"An error occurred while setting item expiration date: {e}"
+            )
 
     def set_description(self):
         """Updates the description for the selected inventory item."""
@@ -522,7 +606,9 @@ class InventoryFrame(tk.Frame):
             self.refresh_inventory_list()
             self.refresh_item_details()
         except Exception as e:
-            print(f"An error occurred while setting item description: {e}")
+            messagebox.showerror(
+                f"An error occurred while setting item description: {e}"
+            )
 
     def set_minimum_threshold(self):
         """Sets the minimum threshold for the selected inventory item."""
@@ -539,7 +625,9 @@ class InventoryFrame(tk.Frame):
             self.refresh_inventory_list()
             self.refresh_item_details()
         except Exception as e:
-            print(f"An error occurred while setting item minimum threshold: {e}")
+            messagebox.showerror(
+                f"An error occurred while setting item minimum threshold: {e}"
+            )
 
 
 class UsersFrame(tk.Frame):
@@ -561,7 +649,8 @@ class UsersFrame(tk.Frame):
         self.scrollable_frame.pack(fill="both", expand=True)
 
         self.search_var = tk.StringVar()
-        self.search_var.trace("w", lambda name, index, mode: self.filter_users)
+        # Properly invoke the filter callback on change
+        self.search_var.trace("w", lambda *args: self.filter_users())
         search_entry = tk.Entry(self.left_frame, textvariable=self.search_var)
         search_entry.pack(fill="x", padx=2, pady=2)
 
@@ -571,14 +660,12 @@ class UsersFrame(tk.Frame):
         self.add_user_button = tk.Button(
             self.left_bottom_frame, text="Add User", command=self.add_user
         )
-        self.add_user_button.pack(side="left", padx=5, pady=5)
 
         self.return_button = tk.Button(
             self.left_bottom_frame,
             text="Return to Menu",
             command=lambda: controller.show_frame(MainMenuFrame),
         )
-        self.return_button.pack(side="left", padx=5, pady=5)
 
         self.right_top_frame = tk.Frame(self)
         self.right_top_frame.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
@@ -590,34 +677,60 @@ class UsersFrame(tk.Frame):
         self.right_bottom_frame = tk.Frame(self)
         self.right_bottom_frame.grid(row=1, column=1, sticky="nsew", padx=5, pady=5)
 
-        self.refresh_details_button = tk.Button(
+        self.change_user_role_button = tk.Button(
             self.right_bottom_frame,
             text="Change User Role",
             command=self.change_user_role,
         )
-        self.refresh_details_button.pack(side="left", padx=5, pady=5)
 
-        self.refresh_details_button = tk.Button(
+        self.delete_user_button = tk.Button(
             self.right_bottom_frame,
             text="Delete User",
             command=self.delete_user,
         )
-        self.refresh_details_button.pack(side="left", padx=5, pady=5)
 
         self.refresh_details_button = tk.Button(
             self.right_bottom_frame,
             text="Refresh Details",
             command=self.refresh_user_details,
         )
+
+        self.add_user_button.pack(side="left", padx=5, pady=5)
+        self.return_button.pack(side="left", padx=5, pady=5)
+        self.change_user_role_button.pack(side="left", padx=5, pady=5)
+        self.delete_user_button.pack(side="left", padx=5, pady=5)
         self.refresh_details_button.pack(side="left", padx=5, pady=5)
 
         self.selected_user = None
 
     def tkraise(self, aboveThis=None):
-        """Overrides tkraise to refresh the user list when the frame is raised."""
+        """Overrides tkraise to refresh the user list when the frame is raised and filter user options."""
 
         super().tkraise(aboveThis)
         self.refresh_user_list()
+        self.update_menu_visibility()
+
+    def update_menu_visibility(self):
+        """Update which buttons are shown based on the logged-in user's role."""
+        role = self.controller.current_user.role
+
+        if role == "Admin":
+            pass
+
+        elif role in ["Leadership", "General Responder", "Community Member"]:
+            self.add_user_button.pack_forget()
+            self.delete_user_button.pack_forget()
+            self.change_user_role_button.pack_forget()
+
+        else:
+            self.add_user_button.pack_forget()
+            self.delete_user_button.pack_forget()
+            self.change_user_role_button.pack_forget()
+            self.refresh_details_button.pack_forget()
+            self.return_button.pack_forget()
+
+            messagebox.showerror("Something went wrong, user has no valid role")
+            self.controller.show_frame(MainMenuFrame)
 
     def refresh_user_list(self):
         """Fetches and displays the list of users."""
@@ -756,7 +869,7 @@ class UsersFrame(tk.Frame):
 
                 users.change_user_role(current_user, username, new_role)
 
-                self.refresh_user_details
+                self.refresh_user_details()
             except Exception as e:
                 messagebox.showerror(
                     "An error occurred while updated user role: ", str(e)
@@ -779,6 +892,8 @@ class UsersFrame(tk.Frame):
                     raise ValueError("Username must be a non-empty string.")
 
                 users.delete_user(current_user, username)
+
+                self.refresh_user_list()
             except Exception as e:
                 messagebox.showerror("User Error", str(e))
         else:
@@ -797,7 +912,7 @@ class UsersFrame(tk.Frame):
                 if not validators.is_non_empty_string(username):
                     raise ValueError("Username must be a non-empty string.")
 
-                password = simpledialog.askstring("Input", "Password: ")
+                password = simpledialog.askstring("Input", "Password: ", show="*")
                 if not validators.is_non_empty_string(password):
                     raise ValueError("Password must be a non-empty string.")
 
@@ -810,6 +925,8 @@ class UsersFrame(tk.Frame):
                     raise ValueError("Email must be in valid format.")
 
                 users.add_user(current_user, username, password, role, email)
+
+                self.refresh_user_list()
             except Exception as e:
                 messagebox.showerror("An error occurred while adding user: ", str(e))
         else:
@@ -1021,7 +1138,7 @@ class AccountFrame(tk.Frame):
 
         try:
             current_password = simpledialog.askstring(
-                "Input", "Verify your current password: "
+                "Input", "Verify your current password: ", show="*"
             )
             login_check = users.login(current_user.username, current_password)
 
@@ -1055,19 +1172,19 @@ class AccountFrame(tk.Frame):
 
         try:
             current_password = simpledialog.askstring(
-                "Input", "Verify your current password: "
+                "Input", "Verify your current password: ", show="*"
             )
             login_check = users.login(current_user.username, current_password)
 
             if (login_check is not None) and (login_check is not False):
                 new_password = simpledialog.askstring(
-                    "Input", "Please enter your new password: "
+                    "Input", "Please enter your new password: ", show="*"
                 )
                 if not validators.is_non_empty_string(new_password):
                     raise TypeError("New password must be non-empty string.")
 
                 reentered = simpledialog.askstring(
-                    "Input", "Reenter your new password: "
+                    "Input", "Reenter your new password: ", show="*"
                 )
                 if reentered == new_password:
                     users.change_user_password(current_user, new_password)

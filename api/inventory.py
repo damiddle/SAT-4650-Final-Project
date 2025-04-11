@@ -125,7 +125,7 @@ def add_inventory_item(
         print(f"An error occurred while adding inventory item: {e}")
 
 
-@roles_required(["Admin", "User"])
+@roles_required(["Admin", "Leadership"])
 def increase_item(current_user, item_name, quantity):
     """Increases the quantity of an inventory item.
 
@@ -159,7 +159,7 @@ def increase_item(current_user, item_name, quantity):
         print(f"An error occurred while increasing item quantity: {e}")
 
 
-@roles_required(["Admin", "User"])
+@roles_required(["Admin", "Leadership"])
 def decrease_item(current_user, item_name, quantity):
     """Decreases the quantity of an inventory item.
 
@@ -207,7 +207,7 @@ def decrease_item(current_user, item_name, quantity):
         print(f"An error occurred while decreasing item quantity: {e}")
 
 
-@roles_required(["Admin", "User"])
+@roles_required(["Admin", "Leadership"])
 def set_quantity(current_user, item_name, quantity):
     """Sets the quantity of an inventory item to an exact value.
 
@@ -245,7 +245,7 @@ def set_quantity(current_user, item_name, quantity):
         print(f"An error occurred while setting item quantity: {e}")
 
 
-@roles_required(["Admin", "User"])
+@roles_required(["Admin", "Leadership"])
 def set_expiration(current_user, item_name, new_expiration):
     """Sets a new expiration date for an inventory item.
 
@@ -282,7 +282,7 @@ def set_expiration(current_user, item_name, new_expiration):
         print(f"An error occurred while setting the new expiration date: {e}")
 
 
-@roles_required(["Admin", "User"])
+@roles_required(["Admin", "Leadership"])
 def set_description(current_user, item_name, new_description):
     """Updates the description of an inventory item.
 
@@ -316,7 +316,7 @@ def set_description(current_user, item_name, new_description):
         print(f"An error occurred while setting the new description: {e}")
 
 
-@roles_required(["Admin", "User"])
+@roles_required(["Admin", "Leadership"])
 def set_minimum_threshold(current_user, item_name, new_minimum_threshold):
     """Sets the minimum threshold for an inventory item.
 
@@ -358,7 +358,7 @@ def set_minimum_threshold(current_user, item_name, new_minimum_threshold):
         print(f"An error occurred while setting the new minimum threshold: {e}")
 
 
-@roles_required(["Admin", "User", "Viewer"])
+@roles_required(["Admin", "Leadership", "General Responder"])
 def show_item(current_user, item_name):
     """Retrieves details for a specific inventory item.
 
@@ -412,7 +412,7 @@ def delete_item(current_user, item_name):
         print(f"An error occurred while deleting item: {e}")
 
 
-@roles_required(["Admin", "User", "Viewer"])
+@roles_required(["Admin", "Leadership", "General Responder"])
 def show_all_inventory(current_user):
     """Retrieves all inventory items and their details.
 

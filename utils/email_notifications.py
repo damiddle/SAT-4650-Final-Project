@@ -10,6 +10,7 @@ from email.message import EmailMessage
 import validators
 import os
 from dotenv import load_dotenv
+from decorators import roles_required
 
 ENV_FILE_PATH = ".env"
 load_dotenv(ENV_FILE_PATH)
@@ -19,6 +20,7 @@ SMTP_PORT = os.getenv("SMTP_PORT")
 USE_TLS = os.getenv("USE_TLS")
 
 
+@roles_required(["Admin", "Leadership"])
 def send_email_notif(from_email, to_email, message, subject):
     """Sends an email notification.
 

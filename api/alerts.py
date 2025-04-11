@@ -4,15 +4,11 @@ Module for inventory alerts.
 Provides functions to search for expired inventory items and items with low quantities.
 """
 
-import sys
-import os
-
-# Append the parent directory to the path.
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
+from utils.decorators import roles_required
 import db_connection
 
 
+@roles_required(["Admin", "Leadership", "General Responder"])
 def search_for_expiration():
     """Searches for inventory items whose expiration date has passed.
 
@@ -35,6 +31,7 @@ def search_for_expiration():
         return []
 
 
+@roles_required(["Admin", "Leadership", "General Responder"])
 def search_for_low_quantity():
     """Searches for inventory items with quantity below their minimum threshold.
 
