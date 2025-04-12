@@ -285,6 +285,38 @@ def set_expiration(current_user, item_name, new_expiration):
         print(f"An error occurred while setting the new expiration date: {e}")
 
 
+def set_category(current_user, item_name, new_category):
+    """Updates the category of an inventory item.
+
+    Args:
+        current_user (CurrentUser): The user performing the update.
+        item_name (str): The name of the item.
+        new_category (str): The new category name.
+
+    Raises:
+        TypeError: If item_name or new_category are invalid.
+        Exception: If a database error occurs.
+    """
+
+    try:
+        if not validators.is_non_empty_string(item_name):
+            raise TypeError("Item name must be a non-empty string")
+
+        if not validators.is_non_empty_string(new_category):
+            raise TypeError("Category must be a non-empty string")
+
+        db_connection.execute_query(
+            "UPDATE inventory SET category = %s WHERE item_name = %s",
+            [new_category, item_name],
+        )
+
+        audit_log.update_audit_log(
+            current_user, item_name, "UPDATE", "Category set to " + new_category
+        )
+    except (MySQLError, Exception) as e:
+        print(print(f"An error occurred while setting the new description: {e}"))
+
+
 @roles_required(["Admin", "Leadership"])
 def set_description(current_user, item_name, new_description):
     """Updates the description of an inventory item.

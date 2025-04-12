@@ -88,6 +88,12 @@ class InventoryFrame(tk.Frame):
             command=self.set_minimum_threshold,
         )
 
+        self.category_button = tk.Button(
+            self.right_bottom_frame,
+            text="Set Category",
+            command=self.set_category,
+        )
+
         self.delete_button = tk.Button(
             self.right_bottom_frame,
             text="Delete Item",
@@ -109,6 +115,7 @@ class InventoryFrame(tk.Frame):
         self.description_button.pack(side="left", padx=5, pady=5)
         self.expiration_button.pack(side="left", padx=5, pady=5)
         self.threshold_button.pack(side="left", padx=5, pady=5)
+        self.category_button.pack(side="left", padx=5, pady=5)
         self.delete_button.pack(side="left", padx=5, pady=5)
 
         self.refresh_details_button.pack(side="left", padx=5, pady=5)
@@ -411,3 +418,17 @@ class InventoryFrame(tk.Frame):
             messagebox.showerror(
                 f"An error occurred while setting item minimum threshold: {e}"
             )
+
+    def set_category(self):
+        """Updates the category for the selected inventory item."""
+
+        current_user = self.controller.current_user
+        try:
+            category = simpledialog.askstring("Input", "New category: ")
+
+            inventory.set_category(current_user, self.selected_item, category)
+
+            self.refresh_inventory_list()
+            self.refresh_item_details()
+        except Exception as e:
+            messagebox.showerror(f"An error occurred while setting item category: {e}")
