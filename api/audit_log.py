@@ -132,7 +132,7 @@ def export_to_txt(current_user, file_path="audit_log_export.txt"):
         with open(export_path, "w") as file:
             for entry in log_entries:
                 file.write(
-                    f"Log ID: {entry[0]} | User: {entry[1]} | Updated object: {entry[2]} | Action: {entry[3]} | Details: {entry[5]} | Time: {entry[4]}\n"
+                    f"Log ID: {entry[0]} | User: {entry[1]} | Updated object: {entry[2]} | Action: {entry[3]} | Details: {entry[4]} | Time: {entry[5]}\n"
                 )
     except (MySQLError, IOError) as e:
         print(f"Error occurred while exporting audit log to .txt file: {e}")

@@ -9,7 +9,7 @@ import db_connection
 
 
 @roles_required(["Admin", "Leadership", "General Responder"])
-def search_for_expiration():
+def search_for_expiration(self):
     """Searches for inventory items whose expiration date has passed.
 
     Returns:
@@ -32,7 +32,7 @@ def search_for_expiration():
 
 
 @roles_required(["Admin", "Leadership", "General Responder"])
-def search_for_low_quantity():
+def search_for_low_quantity(self):
     """Searches for inventory items with quantity below their minimum threshold.
 
     Returns:

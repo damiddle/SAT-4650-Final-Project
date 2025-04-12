@@ -97,8 +97,11 @@ def add_inventory_item(
             if not validators.is_positive_int(initial_quantity):
                 raise TypeError("Initial quantity must be a positive integer")
 
-            if not validators.is_valid_date(expiration_date):
-                raise TypeError("Expiration date must be formatted YYYY-MM-DD")
+            if expiration_date:
+                if not validators.is_valid_date(expiration_date):
+                    raise TypeError("Expiration date must be formatted YYYY-MM-DD")
+            else:
+                expiration_date = None
 
             if not validators.is_positive_int(minimum_threshold):
                 raise TypeError("Minimum threshold must be a positive integer")
