@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import messagebox, scrolledtext
+from tkinter import scrolledtext
 import api.alerts as alerts
 
 

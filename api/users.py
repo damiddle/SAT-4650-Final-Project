@@ -84,7 +84,6 @@ def add_user(current_user, target_user, password, role, email):
                 ],
             )
 
-            print(target_user + " added to user database")
         else:
             print("User " + target_user + " already exists, please update user instead")
         audit_log.update_audit_log(current_user, target_user, "ADD", "New user added")
@@ -118,7 +117,6 @@ def change_user_role(current_user, target_user, new_role):
             [new_role, target_user],
         )
 
-        print("Updated role to " + new_role)
         audit_log.update_audit_log(
             current_user, target_user, "UPDATE", "Set user role to " + new_role
         )
@@ -147,7 +145,6 @@ def delete_user(current_user, target_user):
             "DELETE FROM users WHERE username = %s", [target_user]
         )
 
-        print("User deleted")
         audit_log.update_audit_log(current_user, target_user, "DELETE", "Deleted user")
     except (MySQLError, Exception) as e:
         print(f"An error occurred while deleting user: {e}")
@@ -187,27 +184,19 @@ def login(username, password):
 
         if user_details and len(user_details) > 0:
             if encryption.decrypt_data(user_details[0][0]) == password:
-                print("Successfully logged in!")
-
                 current_user = get_user(username)[0]
                 current_user = CurrentUser(
                     current_user[1], current_user[3], current_user[4]
                 )
-
-                print("Welcome " + current_user.username)
-                print("Permission level: " + current_user.role)
                 audit_log.update_audit_log(
                     current_user, current_user.username, "LOGIN", "Logged in"
                 )
 
                 return current_user
-            else:
-                print("Invalid login credentials")
 
+            else:
                 return False
         else:
-            print("No user found with username")
-
             return False
     except (MySQLError, Exception) as e:
         print(f"An error occurred while logging in: {e}")
@@ -299,7 +288,6 @@ def change_user_password(current_user, new_password):
             [encryption.encrypt_data(new_password), current_user.username],
         )
 
-        print("Password has been updated")
         audit_log.update_audit_log(
             current_user,
             current_user.username,
@@ -331,7 +319,6 @@ def change_user_username(current_user, new_username):
             [new_username, current_user.username],
         )
 
-        print("Username has been updated")
         audit_log.update_audit_log(
             current_user,
             current_user.username,
@@ -363,7 +350,6 @@ def change_user_email(current_user, new_email):
             [new_email, current_user.username],
         )
 
-        print("Email has been updated")
         audit_log.update_audit_log(
             current_user,
             current_user.username,

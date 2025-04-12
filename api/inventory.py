@@ -117,8 +117,6 @@ def add_inventory_item(
                     minimum_threshold,
                 ],
             )
-
-            print(f"{item_name} added to inventory database")
             audit_log.update_audit_log(
                 current_user, item_name, "ADD", "Added item to inventory"
             )
@@ -274,7 +272,6 @@ def set_expiration(current_user, item_name, new_expiration):
             [new_expiration, item_name],
         )
 
-        print("Expiration date of " + item_name + " set to " + str(new_expiration))
         audit_log.update_audit_log(
             current_user,
             item_name,
@@ -340,7 +337,6 @@ def set_description(current_user, item_name, new_description):
             [new_description, item_name],
         )
 
-        print("Description of " + item_name + " set to " + str(new_description))
         audit_log.update_audit_log(
             current_user,
             item_name,
@@ -377,12 +373,6 @@ def set_minimum_threshold(current_user, item_name, new_minimum_threshold):
             [new_minimum_threshold, item_name],
         )
 
-        print(
-            "Minimum threshold of "
-            + item_name
-            + " set to "
-            + str(new_minimum_threshold)
-        )
         audit_log.update_audit_log(
             current_user,
             item_name,
@@ -441,7 +431,6 @@ def delete_item(current_user, item_name):
             "DELETE FROM inventory WHERE item_name = %s", [item_name]
         )
 
-        print(item_name + " deleted from inventory")
         audit_log.update_audit_log(current_user, item_name, "DELETE", "Deleted item")
     except (MySQLError, Exception) as e:
         print(f"An error occurred while deleting item: {e}")

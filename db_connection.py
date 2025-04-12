@@ -42,7 +42,6 @@ def create_connection_pool():
             password=DB_PASSWORD,
             database=DB_NAME,
         )
-        print("Connection pool created successfully.")
 
         return pool
     except Error as err:

@@ -57,10 +57,6 @@ def send_email_notif(from_email, to_email, message, subject):
 
             server.send_message(msg)
 
-            print(
-                f"Email sent from {from_email} to {to_email} with subject '{subject}'"
-            )
-
     except smtplib.SMTPException as smtp_err:
         print(f"SMTP error occurred while sending email: {smtp_err}")
 

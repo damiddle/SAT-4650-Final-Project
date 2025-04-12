@@ -15,6 +15,7 @@ class App(tk.Tk):
         super().__init__()
         self.title("EMS Inventory GUI")
         self.geometry("1000x600")
+        self.attributes("-fullscreen", True)
         self.bind("<Escape>", lambda event: self.attributes("-fullscreen", False))
         self.current_user = None
 

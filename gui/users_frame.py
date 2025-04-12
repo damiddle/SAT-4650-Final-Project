@@ -33,12 +33,12 @@ class UsersFrame(tk.Frame):
         self.left_bottom_frame.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
 
         self.add_user_button = tk.Button(
-            self.left_bottom_frame, text="Add User", command=self.add_user
+            self.left_bottom_frame, text="Add user", command=self.add_user
         )
 
         self.return_button = tk.Button(
             self.left_bottom_frame,
-            text="Return to Menu",
+            text="Return to menu",
             command=lambda: controller.show_frame("MainMenuFrame"),
         )
 
@@ -54,19 +54,19 @@ class UsersFrame(tk.Frame):
 
         self.change_user_role_button = tk.Button(
             self.right_bottom_frame,
-            text="Change User Role",
+            text="Change role",
             command=self.change_user_role,
         )
 
         self.delete_user_button = tk.Button(
             self.right_bottom_frame,
-            text="Delete User",
+            text="Delete user",
             command=self.delete_user,
         )
 
         self.refresh_details_button = tk.Button(
             self.right_bottom_frame,
-            text="Refresh Details",
+            text="Refresh details",
             command=self.refresh_user_details,
         )
 
@@ -117,7 +117,7 @@ class UsersFrame(tk.Frame):
 
             self.populate_user_buttons(self.all_users)
         except Exception as e:
-            messagebox.showerror("Users Error", str(e))
+            messagebox.showerror("Users error", str(e))
 
     def filter_users(self):
         """Filters displayed users based on the search query."""
@@ -176,8 +176,8 @@ class UsersFrame(tk.Frame):
             if user_data and len(user_data) > 0:
                 user = user_data[0]
                 details = (
-                    f"User ID: {user[0]}\n"
                     f"Username: {user[1]}\n"
+                    f"User ID: {user[0]}\n"
                     f"Role: {user[2]}\n"
                     f"Email: {user[3]}\n"
                     f"Registered: {user[4]}\n"
@@ -204,8 +204,8 @@ class UsersFrame(tk.Frame):
                 if users_list:
                     for user in users_list:
                         user_str = (
-                            f"User ID: {user[0]}\n"
                             f"Username: {user[1]}\n"
+                            f"User ID: {user[0]}\n"
                             f"Role: {user[2]}\n"
                             f"Email: {user[3]}\n"
                             f"Created: {user[4]}\n"
@@ -270,7 +270,7 @@ class UsersFrame(tk.Frame):
 
                 self.refresh_user_list()
             except Exception as e:
-                messagebox.showerror("User Error", str(e))
+                messagebox.showerror("User error", str(e))
         else:
             messagebox.showerror("Error", "No current user. Please login again.")
 

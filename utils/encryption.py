@@ -40,8 +40,6 @@ def generate_encryption_key():
     with open(ENV_FILE_PATH, "a") as file:
         file.write(f"\n{ACTIVE_KEY_VAR_NAME} = '{key}'\n")
 
-    print("Encryption key generated and stored in .env file.")
-
 
 def load_encryption_key(version="Active"):
     """Loads the encryption key from the .env file.

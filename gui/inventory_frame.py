@@ -1,8 +1,16 @@
 import tkinter as tk
-from tkinter import messagebox, simpledialog
+from tkinter import messagebox, simpledialog, ttk
 import api.inventory as inventory
 import utils.validators as validators
 from gui.scrollable_frame import ScrollableFrame
+from dotenv import load_dotenv
+import os
+import ast
+
+ENV_FILE_PATH = ".env"
+load_dotenv(ENV_FILE_PATH)
+
+VALID_CATEGORIES = ast.literal_eval(os.getenv("VALID_CATEGORIES"))
 
 
 class InventoryFrame(tk.Frame):
@@ -56,53 +64,53 @@ class InventoryFrame(tk.Frame):
         # Inventory actions
         self.increase_button = tk.Button(
             self.right_bottom_frame,
-            text="Increase Quantity",
+            text="Increase",
             command=self.increase_quantity,
         )
 
         self.decrease_button = tk.Button(
             self.right_bottom_frame,
-            text="Decrease Quantity",
+            text="Decrease",
             command=self.decrease_quantity,
         )
 
         self.set_button = tk.Button(
-            self.right_bottom_frame, text="Set Quantity", command=self.set_quantity
+            self.right_bottom_frame, text="Change quantity", command=self.set_quantity
         )
 
         self.description_button = tk.Button(
             self.right_bottom_frame,
-            text="Set Description",
+            text="Change description",
             command=self.set_description,
         )
 
         self.expiration_button = tk.Button(
             self.right_bottom_frame,
-            text="Set Expiration Date",
+            text="Change expiration date",
             command=self.set_expiration,
         )
 
         self.threshold_button = tk.Button(
             self.right_bottom_frame,
-            text="Set Minimum Threshold",
+            text="Change minimum alert threshold",
             command=self.set_minimum_threshold,
         )
 
         self.category_button = tk.Button(
             self.right_bottom_frame,
-            text="Set Category",
+            text="Change category",
             command=self.set_category,
         )
 
         self.delete_button = tk.Button(
             self.right_bottom_frame,
-            text="Delete Item",
+            text="Delete item",
             command=self.delete_item,
         )
 
         self.refresh_details_button = tk.Button(
             self.right_bottom_frame,
-            text="Refresh Details",
+            text="Refresh details",
             command=self.refresh_item_details,
         )
 
@@ -139,7 +147,7 @@ class InventoryFrame(tk.Frame):
 
             self.populate_item_buttons(self.all_items)
         except Exception as e:
-            messagebox.showerror("Inventory Error", str(e))
+            messagebox.showerror("Inventory error", str(e))
 
     def update_button_visibility(self):
         """Allows filtering of inventory actions by role"""
@@ -170,7 +178,11 @@ class InventoryFrame(tk.Frame):
         """Filters the displayed item buttons based on the search query."""
 
         query = self.search_var.get().lower()
-        filtered_items = [item for item in self.all_items if query in item[0].lower()]
+        filtered_items = [
+            item
+            for item in self.all_items
+            if query in item[0].lower() or query in item[1].lower()
+        ]
 
         self.populate_item_buttons(filtered_items)
 
@@ -223,13 +235,13 @@ class InventoryFrame(tk.Frame):
             if item_data and len(item_data) > 0:
                 item = item_data[0]
                 details = (
-                    f"Item Name: {item[1]}\n"
-                    f"Category: {item[2]}\n"
+                    f"Name: {item[1]}\n"
                     f"Description: {item[3]}\n"
+                    f"Category: {item[2]}\n"
                     f"Quantity: {item[4]}\n"
-                    f"Expiration Date: {item[5]}\n"
-                    f"Min Threshold: {item[6]}\n"
-                    f"Last Updated: {item[7]}\n"
+                    f"Expiration date: {item[5]}\n"
+                    f"Minimum alert threshold: {item[6]}\n"
+                    f"Last updated: {item[7]}\n"
                 )
 
                 self.item_details_text.insert(tk.END, details)
@@ -244,56 +256,118 @@ class InventoryFrame(tk.Frame):
         """Adds a new inventory item using user inputs."""
 
         current_user = self.controller.current_user
-        try:
-            item_name = simpledialog.askstring("Input", "Enter item to add: ")
-            if not validators.is_non_empty_string(item_name):
-                raise ValueError("Item name must be a non-empty string")
 
-            item_category = simpledialog.askstring("Input", "Enter item category: ")
-            if not validators.is_non_empty_string(item_category):
-                raise ValueError("Item category must be a non-empty string")
+        popup = tk.Toplevel(self)
+        popup.title("Add Inventory Item")
 
-            item_description = simpledialog.askstring(
-                "Input", "Enter item description, optional: "
-            )
-            initial_quantity = simpledialog.askinteger(
-                "Input", "Enter the initial quantity: "
-            )
+        item_name_frame = tk.Frame(popup)
+        item_name_label = tk.Label(item_name_frame, text="Item name:")
+        item_name_input = tk.Entry(item_name_frame)
+        item_name_label.pack(side="left", padx=20, pady=10)
+        item_name_input.pack(side="left", padx=20, pady=10)
+        item_name_frame.pack()
 
-            if not validators.is_positive_int(initial_quantity):
-                raise ValueError("Initial quantity must be a positive integer")
+        item_category_frame = tk.Frame(popup)
+        item_category_label = tk.Label(item_category_frame, text="Category:")
+        selected_category = tk.StringVar(popup)
+        selected_category.set(VALID_CATEGORIES[0])
+        item_category_dropdown = ttk.Combobox(
+            item_category_frame,
+            textvariable=selected_category,
+            values=VALID_CATEGORIES,
+            state="readonly",
+        )
+        item_category_label.pack(side="left", padx=20, pady=10)
+        item_category_dropdown.pack(side="left", padx=20, pady=10)
+        item_category_dropdown.current(0)
+        item_category_frame.pack()
 
-            expiration_date = simpledialog.askstring(
-                "Input", "Enter the expiration date (YYYY-MM-DD), optional: "
-            )
+        item_quantity_frame = tk.Frame(popup)
+        item_quantity_label = tk.Label(item_quantity_frame, text="Current quantity:")
+        item_quantity_input = tk.Entry(item_quantity_frame)
+        item_quantity_label.pack(side="left", padx=20, pady=10)
+        item_quantity_input.pack(side="left", padx=20, pady=10)
+        item_quantity_frame.pack()
 
-            if expiration_date is not None and expiration_date.strip() == "":
-                expiration_date = None
-            elif expiration_date and not validators.is_valid_date(expiration_date):
-                raise ValueError("Expiration date must be in YYYY-MM-DD format")
+        item_minimum_threshold_frame = tk.Frame(popup)
+        item_minimum_threshold_label = tk.Label(
+            item_minimum_threshold_frame, text="Minimum alert threshold:"
+        )
+        item_minimum_threshold_input = tk.Entry(item_minimum_threshold_frame)
+        item_minimum_threshold_label.pack(side="left", padx=20, pady=10)
+        item_minimum_threshold_input.pack(side="left", padx=20, pady=10)
+        item_minimum_threshold_frame.pack()
 
-            minimum_threshold = simpledialog.askinteger(
-                "Input", "Enter the minimum threshold: "
-            )
+        item_expiration_frame = tk.Frame(popup)
+        item_expiration_label = tk.Label(
+            item_expiration_frame, text="Expiration date (YYYY-MM-DD, optional):"
+        )
+        item_expiration_input = tk.Entry(item_expiration_frame)
+        item_expiration_label.pack(side="left", padx=20, pady=10)
+        item_expiration_input.pack(side="left", padx=20, pady=10)
+        item_expiration_frame.pack()
 
-            if not validators.is_positive_int(minimum_threshold):
-                raise ValueError("Minimum threshold must be a positive integer")
+        item_description_frame = tk.Frame(popup)
+        item_description_label = tk.Label(
+            item_description_frame, text="Description (optional):"
+        )
+        item_description_input = tk.Entry(item_description_frame)
+        item_description_label.pack(side="left", padx=20, pady=10)
+        item_description_input.pack(side="left", padx=20, pady=10)
+        item_description_frame.pack()
 
-            inventory.add_inventory_item(
-                current_user,
-                item_name,
-                item_category,
-                item_description,
-                initial_quantity,
-                expiration_date,
-                minimum_threshold,
-            )
+        def submit():
+            try:
+                item_name = item_name_input.get()
+                if not validators.is_non_empty_string(item_name):
+                    raise TypeError("Item name must be a non-empty string")
 
-            self.refresh_inventory_list()
-            self.selected_item = item_name
-            self.refresh_item_details()
-        except Exception as e:
-            messagebox.showerror(f"Error adding item: {e}")
+                category = selected_category.get()
+                if not validators.is_non_empty_string(category):
+                    raise TypeError("Item category must be a non-empty string")
+
+                quantity = int(item_quantity_input.get())
+                if not validators.is_positive_int(quantity):
+                    raise TypeError("Item quantity must be a positive integer")
+
+                minimum_threshold = int(item_minimum_threshold_input.get())
+                if not validators.is_positive_int(minimum_threshold):
+                    raise TypeError(
+                        "Item minimum alert threshold must be a positive integer"
+                    )
+
+                expiration_date = item_expiration_input.get()
+                if expiration_date is not None and expiration_date.strip() == "":
+                    expiration_date = None
+                elif expiration_date and not validators.is_valid_date(expiration_date):
+                    raise ValueError("Expiration date must be in YYYY-MM-DD format")
+
+                description = item_description_input.get()
+                if description is not None and description.strip() == "":
+                    description = None
+                elif description and not validators.is_non_empty_string(description):
+                    raise ValueError("Description must be non-empty string")
+
+                inventory.add_inventory_item(
+                    current_user,
+                    item_name,
+                    category,
+                    description,
+                    quantity,
+                    expiration_date,
+                    minimum_threshold,
+                )
+
+                self.refresh_inventory_list()
+                self.refresh_item_details()
+            except Exception as e:
+                messagebox.showerror(
+                    "Error", f"An error occurred while setting item category: {e}"
+                )
+            popup.destroy()
+
+        submit_button = tk.Button(popup, text="Submit", command=submit)
+        submit_button.pack(padx=20, pady=10)
 
     def delete_item(self):
         """Deletes the currently selected inventory item."""
@@ -353,7 +427,7 @@ class InventoryFrame(tk.Frame):
 
         current_user = self.controller.current_user
         try:
-            quantity = simpledialog.askinteger("Input", "Set quantity to: ")
+            quantity = simpledialog.askinteger("Input", "Change quantity to: ")
 
             if not validators.is_positive_int(quantity):
                 raise TypeError("Quantity must be a positive integer")
@@ -405,7 +479,9 @@ class InventoryFrame(tk.Frame):
 
         current_user = self.controller.current_user
         try:
-            quantity = simpledialog.askinteger("Input", "Set minimum threshold to: ")
+            quantity = simpledialog.askinteger(
+                "Input", "Set minimum alert threshold to: "
+            )
 
             if not validators.is_positive_int(quantity):
                 raise TypeError("Quantity must be a positive integer")
@@ -424,11 +500,39 @@ class InventoryFrame(tk.Frame):
 
         current_user = self.controller.current_user
         try:
-            category = simpledialog.askstring("Input", "New category: ")
+            popup = tk.Toplevel(self)
+            popup.title("Select Category")
 
-            inventory.set_category(current_user, self.selected_item, category)
+            label = tk.Label(popup, text="Select new category:")
+            label.pack(padx=20, pady=10)
 
-            self.refresh_inventory_list()
-            self.refresh_item_details()
+            selected_category = tk.StringVar(popup)
+            selected_category.set(VALID_CATEGORIES[0])
+
+            dropdown = ttk.Combobox(
+                popup,
+                textvariable=selected_category,
+                values=VALID_CATEGORIES,
+                state="readonly",
+            )
+            dropdown.pack(padx=20, pady=10)
+            dropdown.current(0)
+
+            def submit():
+                category = selected_category.get()
+                try:
+                    inventory.set_category(current_user, self.selected_item, category)
+
+                    self.refresh_inventory_list()
+                    self.refresh_item_details()
+                except Exception as e:
+                    messagebox.showerror(
+                        "Error", f"An error occurred while setting item category: {e}"
+                    )
+                popup.destroy()
+
+            submit_button = tk.Button(popup, text="Submit", command=submit)
+            submit_button.pack(padx=20, pady=10)
+
         except Exception as e:
             messagebox.showerror(f"An error occurred while setting item category: {e}")

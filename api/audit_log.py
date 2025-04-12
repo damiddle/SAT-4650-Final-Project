@@ -44,8 +44,6 @@ def update_audit_log(current_user, updated_object, action_type, details):
             "INSERT INTO audit_log (username, updated_object, action_type, details) VALUES (%s, %s, %s, %s)",
             [current_user.username, updated_object, action_type, details],
         )
-
-        print("Audit log updated")
     except MySQLError as e:
         print(f"Database error occurred while updating the audit log: {e}")
 

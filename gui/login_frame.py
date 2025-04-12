@@ -1,8 +1,6 @@
 import tkinter as tk
-from tkinter import messagebox, simpledialog
-import utils.validators as validators
+from tkinter import messagebox
 import api.users as users
-import api.audit_log as audit_log
 
 
 class LoginFrame(tk.Frame):
@@ -30,7 +28,7 @@ class LoginFrame(tk.Frame):
         self.password_entry.grid(row=1, column=1, padx=5, pady=5)
 
         tk.Button(self, text="Login", command=self.perform_login).pack(pady=10)
-        tk.Button(self, text="Close Application", command=self.close_application).pack(
+        tk.Button(self, text="Close application", command=self.close_application).pack(
             pady=10
         )
 
@@ -51,7 +49,7 @@ class LoginFrame(tk.Frame):
                 self.controller.current_user = current_user
                 self.controller.show_frame("MainMenuFrame")
             else:
-                messagebox.showerror("Login Error", "Invalid username or password.")
+                messagebox.showerror("Login error", "Invalid username or password.")
 
         except Exception as e:
             messagebox.showerror("An error occurred while logging in: ", str(e))
