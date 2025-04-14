@@ -5,7 +5,10 @@ import utils.validators as validators
 from gui.scrollable_frame import ScrollableFrame
 from dotenv import load_dotenv
 import os
+import logging
 import ast
+
+logger = logging.getLogger(__name__)
 
 ENV_FILE_PATH = ".env"
 load_dotenv(ENV_FILE_PATH)
@@ -147,7 +150,7 @@ class InventoryFrame(tk.Frame):
 
             self.populate_item_buttons(self.all_items)
         except Exception as e:
-            messagebox.showerror("Inventory error", str(e))
+            logger.error(f"Error refreshing inventory list: {e}")
 
     def update_button_visibility(self):
         """Allows filtering of inventory actions by role"""
@@ -171,7 +174,7 @@ class InventoryFrame(tk.Frame):
             self.threshold_button.pack_forget()
 
         else:
-            messagebox.showerror("Something went wrong, user has no valid role")
+            messagebox.showerror("Error", "Button visibility error")
             self.controller.show_frame("MainMenuFrame")
 
     def filter_items(self):
@@ -217,6 +220,7 @@ class InventoryFrame(tk.Frame):
             self.show_item_details(self.selected_item)
         else:
             messagebox.showerror("Error", "No item selected.")
+            logger.error("No item selected")
 
     def show_item_details(self, item_name):
         """Displays detailed information for a selected inventory item.
@@ -250,7 +254,8 @@ class InventoryFrame(tk.Frame):
 
             self.item_details_text.config(state="disabled")
         except Exception as e:
-            messagebox.showerror("Error", str(e))
+            messagebox.showerror("Error", f"Error showing item details: {e}")
+            logger.error(f"Error showing item details: {e}")
 
     def add_item(self):
         """Adds a new inventory item using user inputs."""
@@ -291,7 +296,7 @@ class InventoryFrame(tk.Frame):
 
         item_minimum_threshold_frame = tk.Frame(popup)
         item_minimum_threshold_label = tk.Label(
-            item_minimum_threshold_frame, text="Minimum alert threshold:"
+            item_minimum_threshold_frame, text="Minimum alert threshold (optional):"
         )
         item_minimum_threshold_input = tk.Entry(item_minimum_threshold_frame)
         item_minimum_threshold_label.pack(side="left", padx=20, pady=10)
@@ -330,8 +335,12 @@ class InventoryFrame(tk.Frame):
                 if not validators.is_positive_int(quantity):
                     raise TypeError("Item quantity must be a positive integer")
 
-                minimum_threshold = int(item_minimum_threshold_input.get())
-                if not validators.is_positive_int(minimum_threshold):
+                minimum_threshold = item_minimum_threshold_input.get()
+                if minimum_threshold is not None and minimum_threshold.strip() == "":
+                    minimum_threshold = None
+                elif minimum_threshold and not validators.is_positive_int(
+                    minimum_threshold
+                ):
                     raise TypeError(
                         "Item minimum alert threshold must be a positive integer"
                     )
@@ -359,11 +368,14 @@ class InventoryFrame(tk.Frame):
                 )
 
                 self.refresh_inventory_list()
+                self.show_item_details(item_name)
                 self.refresh_item_details()
+
             except Exception as e:
                 messagebox.showerror(
                     "Error", f"An error occurred while setting item category: {e}"
                 )
+                logger.error(f"An error occurred while setting item category: {e}")
             popup.destroy()
 
         submit_button = tk.Button(popup, text="Submit", command=submit)
@@ -382,7 +394,8 @@ class InventoryFrame(tk.Frame):
             self.refresh_inventory_list()
             self.refresh_item_details()
         except Exception as e:
-            messagebox.showerror(f"Error deleting item: {e}")
+            messagebox.showerror("Error", f"Error deleting item: {e}")
+            logger.error(f"Error deleting item: {e}")
 
     def increase_quantity(self):
         """Increases the quantity of the selected inventory item."""
@@ -399,9 +412,8 @@ class InventoryFrame(tk.Frame):
             self.refresh_inventory_list()
             self.refresh_item_details()
         except Exception as e:
-            messagebox.showerror(
-                f"An error occurred while increasing item quantity: {e}"
-            )
+            messagebox.showerror("Error", f"Error increasing item: {e}")
+            logger.error(f"Error increasing item: {e}")
 
     def decrease_quantity(self):
         """Decreases the quantity of the selected inventory item."""
@@ -418,9 +430,8 @@ class InventoryFrame(tk.Frame):
             self.refresh_inventory_list()
             self.refresh_item_details()
         except Exception as e:
-            messagebox.showerror(
-                f"An error occurred while decreasing item quantity: {e}"
-            )
+            messagebox.showerror("Error", f"Error decreasing quantity: {e}")
+            logger.error(f"Error decreasing quantity: {e}")
 
     def set_quantity(self):
         """Sets the quantity of the selected inventory item to a specific value."""
@@ -437,7 +448,8 @@ class InventoryFrame(tk.Frame):
             self.refresh_inventory_list()
             self.refresh_item_details()
         except Exception as e:
-            messagebox.showerror(f"An error occurred while setting item quantity: {e}")
+            messagebox.showerror("Error", f"Error setting item quantity: {e}")
+            logger.error(f"Error setting item quantity: {e}")
 
     def set_expiration(self):
         """Updates the expiration date for the selected inventory item."""
@@ -454,9 +466,8 @@ class InventoryFrame(tk.Frame):
             self.refresh_inventory_list()
             self.refresh_item_details()
         except Exception as e:
-            messagebox.showerror(
-                f"An error occurred while setting item expiration date: {e}"
-            )
+            messagebox.showerror("Error", f"Error setting item expiration date: {e}")
+            logger.error(f"Error setting item expiration date: {e}")
 
     def set_description(self):
         """Updates the description for the selected inventory item."""
@@ -470,9 +481,8 @@ class InventoryFrame(tk.Frame):
             self.refresh_inventory_list()
             self.refresh_item_details()
         except Exception as e:
-            messagebox.showerror(
-                f"An error occurred while setting item description: {e}"
-            )
+            messagebox.showerror("Error", f"Error setting item description: {e}")
+            logger.error(f"Error setting item description: {e}")
 
     def set_minimum_threshold(self):
         """Sets the minimum threshold for the selected inventory item."""
@@ -491,9 +501,8 @@ class InventoryFrame(tk.Frame):
             self.refresh_inventory_list()
             self.refresh_item_details()
         except Exception as e:
-            messagebox.showerror(
-                f"An error occurred while setting item minimum threshold: {e}"
-            )
+            messagebox.showerror("Error", f"Error setting item minimum threshold: {e}")
+            logger.error(f"Error setting item minimum threshold: {e}")
 
     def set_category(self):
         """Updates the category for the selected inventory item."""
@@ -526,13 +535,13 @@ class InventoryFrame(tk.Frame):
                     self.refresh_inventory_list()
                     self.refresh_item_details()
                 except Exception as e:
-                    messagebox.showerror(
-                        "Error", f"An error occurred while setting item category: {e}"
-                    )
+                    messagebox.showerror("Error", f"Error setting item category: {e}")
+                    logger.error(f"Error setting item category: {e}")
                 popup.destroy()
 
             submit_button = tk.Button(popup, text="Submit", command=submit)
             submit_button.pack(padx=20, pady=10)
 
         except Exception as e:
-            messagebox.showerror(f"An error occurred while setting item category: {e}")
+            messagebox.showerror("Error", f"Error setting item category: {e}")
+            logger.error(f"Error setting item category: {e}")

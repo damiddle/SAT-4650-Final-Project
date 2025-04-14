@@ -5,7 +5,10 @@ Provides functions to search for expired inventory items and items with low quan
 """
 
 from utils.decorators import roles_required
+import logging
 import db_connection
+
+logger = logging.getLogger(__name__)
 
 
 @roles_required(["Admin", "Leadership", "General Responder"])
@@ -26,7 +29,7 @@ def search_for_expiration(self):
 
         return expired_inventory if expired_inventory is not None else []
     except Exception as e:
-        print(f"An error occurred while searching for expired inventory: {e}")
+        logger.error(f"Expired inventory search error: {e}")
 
         return []
 
@@ -49,6 +52,6 @@ def search_for_low_quantity(self):
 
         return low_inventory if low_inventory is not None else []
     except Exception as e:
-        print(f"An error occurred while searching for low inventory: {e}")
+        logger.error(f"Low inventory search error: {e}")
 
         return []

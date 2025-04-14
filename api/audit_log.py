@@ -12,9 +12,12 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import db_connection
+import logging
 import utils.validators as validators
 from utils.decorators import roles_required
 from mysql.connector import Error as MySQLError
+
+logger = logging.getLogger(__name__)
 
 
 def update_audit_log(current_user, updated_object, action_type, details):
@@ -45,7 +48,8 @@ def update_audit_log(current_user, updated_object, action_type, details):
             [current_user.username, updated_object, action_type, details],
         )
     except MySQLError as e:
-        print(f"Database error occurred while updating the audit log: {e}")
+        logger.error(f"Database error updating audit log: {e}")
+        raise
 
 
 @roles_required(["Admin"])
@@ -74,8 +78,7 @@ def pull_audit_log(current_user, number_of_entries):
         connection = db_connection.get_connection()
 
         if connection is None:
-            print("Unable to establish a database connection.")
-
+            logger.error("Unable to establish a database connection.")
             return []
 
         cursor = connection.cursor()
@@ -89,9 +92,9 @@ def pull_audit_log(current_user, number_of_entries):
 
         return result_set
     except MySQLError as e:
-        print(f"Error occurred while pulling results from audit log: {e}")
+        logger.error(f"Error pulling audit log: {e}")
 
-        return
+        return []
     finally:
         if cursor is not None:
             cursor.close()
@@ -121,7 +124,7 @@ def export_to_txt(current_user, file_path="audit_log_export.txt"):
         )
 
         if log_entries is None:
-            print("No audit log entries retrieved")
+            logger.info("No audit log entries retrieved")
 
             return
 
@@ -133,4 +136,5 @@ def export_to_txt(current_user, file_path="audit_log_export.txt"):
                     f"Log ID: {entry[0]} | User: {entry[1]} | Updated object: {entry[2]} | Action: {entry[3]} | Details: {entry[4]} | Time: {entry[5]}\n"
                 )
     except (MySQLError, IOError) as e:
-        print(f"Error occurred while exporting audit log to .txt file: {e}")
+        logger.error(f"Error exporting audit log: {e}")
+        raise

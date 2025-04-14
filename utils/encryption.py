@@ -6,11 +6,14 @@ and encrypt/decrypt data using Fernet symmetric encryption.
 """
 
 import os
+import logging
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 
 ENV_FILE_PATH = ".env"
 load_dotenv(ENV_FILE_PATH)
+
+logger = logging.getLogger(__name__)
 
 ACTIVE_KEY_VAR_NAME = "ACTIVE_ENCRYPTION_KEY"
 OLD_KEY_VAR_NAME = "OLD_ENCRYPTION_KEY"
@@ -127,5 +130,5 @@ def decrypt_data(encrypted_data):
 
         return decrypted
     except Exception as e:
-        print(f"Decryption failed: {e}")
+        logger.error(f"Decryption failed: {e}")
         raise Exception("Decryption failed") from e

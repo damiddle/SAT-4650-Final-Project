@@ -1,6 +1,9 @@
 import tkinter as tk
-from tkinter import scrolledtext
+from tkinter import scrolledtext, messagebox
 import api.alerts as alerts
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class AlertFrame(tk.Frame):
@@ -54,9 +57,8 @@ class AlertFrame(tk.Frame):
             else:
                 self.alert_text.insert(tk.END, "There is no expired inventory.")
         except Exception as e:
-            self.alert_text.insert(
-                tk.END, f"An error occurred while retrieving expired inventory: {e}"
-            )
+            messagebox.showerror(f"Error retrieving expired inventory: {e}")
+            logger.error(f"Error retrieving expired inventory: {e}")
 
     def view_low_inventory(self):
         """Displays inventory items with quantity below the threshold."""
@@ -80,6 +82,5 @@ class AlertFrame(tk.Frame):
             else:
                 self.alert_text.insert(tk.END, "There is no low inventory.")
         except Exception as e:
-            self.alert_text.insert(
-                tk.END, f"An error occurred while retrieving low inventory: {e}"
-            )
+            messagebox.showerror(f"Error retrieving low inventory: {e}")
+            logger.error(f"Error retrieving low inventory: {e}")

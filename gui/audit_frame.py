@@ -2,6 +2,9 @@ import tkinter as tk
 from tkinter import messagebox, scrolledtext, simpledialog
 import api.audit_log as audit_log
 import utils.validators as validators
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class AuditFrame(tk.Frame):
@@ -65,11 +68,11 @@ class AuditFrame(tk.Frame):
 
                     self.audit_text.insert(tk.END, audit_str)
             except Exception as e:
-                self.audit_text.insert(
-                    tk.END, "An error occurred while retrieving audit logs: ", str(e)
-                )
+                messagebox.showerror("Error", f"Error retrieving audit logs: {e}")
+                logger.error(f"Error retrieving audit logs: {e}")
         else:
             messagebox.showerror("Error", "No current user. Please login again.")
+            logger.error("No logged in user specified")
 
     def export_logs_to_text(self):
         """Exports the audit log to a text file and notifies the user."""
@@ -85,6 +88,5 @@ class AuditFrame(tk.Frame):
                 tk.END, "Audit log has been exported as a .txt file."
             )
         except Exception as e:
-            self.audit_text.insert(
-                tk.END, f"An error occurred while exporting the audit log: {e}"
-            )
+            messagebox.showerror("Error", f"Error exporting the audit log: {e}")
+            logger.error(f"Error exporting the audit log: {e}")

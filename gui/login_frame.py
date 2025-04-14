@@ -1,6 +1,9 @@
 import tkinter as tk
 from tkinter import messagebox
 import api.users as users
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class LoginFrame(tk.Frame):
@@ -52,4 +55,5 @@ class LoginFrame(tk.Frame):
                 messagebox.showerror("Login error", "Invalid username or password.")
 
         except Exception as e:
-            messagebox.showerror("An error occurred while logging in: ", str(e))
+            messagebox.showerror("Error", f"Login error: {e}")
+            logger.error(f"Login error: {e}")

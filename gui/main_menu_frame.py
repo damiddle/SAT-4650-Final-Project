@@ -1,6 +1,9 @@
 import tkinter as tk
 from tkinter import messagebox
 import api.audit_log as audit_log
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class MainMenuFrame(tk.Frame):
@@ -99,7 +102,8 @@ class MainMenuFrame(tk.Frame):
             self.inventory_button.pack_forget()
             self.account_button.pack_forget()
 
-            messagebox.showerror("Something went wrong, user has no valid role")
+            messagebox.showerror("Error", "User has no valid role")
+            logger.error("User has no valid role")
             self.logout()
 
     def tkraise(self, aboveThis=None):

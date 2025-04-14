@@ -13,9 +13,12 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import db_connection
 import api.audit_log as audit_log
+import logging
 import utils.validators as validators
 from utils.decorators import roles_required
 from mysql.connector import Error as MySQLError
+
+logger = logging.getLogger(__name__)
 
 
 def perform_inventory_update(
@@ -44,14 +47,14 @@ def perform_inventory_update(
         if result is None:
             raise Exception("Database operation failed.")
 
-        print(success_message)
+        logger.info(success_message)
         audit_log.update_audit_log(current_user, item_name, "UPDATE", audit_message)
 
         return result
-    except Exception as e:
-        print(f"Error: {e}")
+    except (MySQLError, Exception) as e:
+        logger.error(f"Error in perform_inventory_update: {e}")
 
-        return None
+        raise
 
 
 @roles_required(["Admin"])
@@ -103,8 +106,11 @@ def add_inventory_item(
             else:
                 expiration_date = None
 
-            if not validators.is_positive_int(minimum_threshold):
-                raise TypeError("Minimum threshold must be a positive integer")
+            if minimum_threshold:
+                if not validators.is_positive_int(minimum_threshold):
+                    raise TypeError("Minimum threshold must be a positive integer")
+                else:
+                    minimum_threshold = None
 
             db_connection.execute_query(
                 "INSERT INTO inventory (item_name, category, description, quantity, expiration_date, min_threshold) VALUES(%s, %s, %s, %s, %s, %s)",
@@ -120,10 +126,12 @@ def add_inventory_item(
             audit_log.update_audit_log(
                 current_user, item_name, "ADD", "Added item to inventory"
             )
+            logger.info(f"Item {item_name} added")
         else:
-            print(f"Item {item_name} already exists, please update item instead")
+            logger.info(f"Item {item_name} already exists; please update instead.")
     except (MySQLError, Exception) as e:
-        print(f"An error occurred while adding inventory item: {e}")
+        logger.error(f"Error adding inventory item: {e}")
+        raise
 
 
 @roles_required(["Admin", "Leadership"])
@@ -156,8 +164,8 @@ def increase_item(current_user, item_name, quantity):
             f"Quantity of {item_name} increased",
             f"Quantity increased by {quantity}",
         )
-    except Exception as e:
-        print(f"An error occurred while increasing item quantity: {e}")
+    except (MySQLError, Exception) as e:
+        logger.error(f"Error increasing item quantity: {e}")
 
 
 @roles_required(["Admin", "Leadership"])
@@ -204,8 +212,9 @@ def decrease_item(current_user, item_name, quantity):
             f"Quantity of {item_name} decreased",
             f"Quantity decreased by {quantity}",
         )
-    except Exception as e:
-        print(f"An error occurred while decreasing item quantity: {e}")
+    except (MySQLError, Exception) as e:
+        logger.error(f"Error decreasing item quantity: {e}")
+        raise
 
 
 @roles_required(["Admin", "Leadership"])
@@ -242,8 +251,9 @@ def set_quantity(current_user, item_name, quantity):
             f"Quantity of {item_name} set to {quantity}",
             f"Quantity set to {quantity}",
         )
-    except Exception as e:
-        print(f"An error occurred while setting item quantity: {e}")
+    except (MySQLError, Exception) as e:
+        logger.error(f"Error setting item quantity: {e}")
+        raise
 
 
 @roles_required(["Admin", "Leadership"])
@@ -279,7 +289,8 @@ def set_expiration(current_user, item_name, new_expiration):
             "Expiration date set to " + new_expiration,
         )
     except (MySQLError, Exception) as e:
-        print(f"An error occurred while setting the new expiration date: {e}")
+        logger.error(f"Error setting expiration date: {e}")
+        raise
 
 
 def set_category(current_user, item_name, new_category):
@@ -311,7 +322,8 @@ def set_category(current_user, item_name, new_category):
             current_user, item_name, "UPDATE", "Category set to " + new_category
         )
     except (MySQLError, Exception) as e:
-        print(print(f"An error occurred while setting the new description: {e}"))
+        logger.error(f"Error setting category: {e}")
+        raise
 
 
 @roles_required(["Admin", "Leadership"])
@@ -344,7 +356,8 @@ def set_description(current_user, item_name, new_description):
             "Description set to " + new_description,
         )
     except (MySQLError, Exception) as e:
-        print(f"An error occurred while setting the new description: {e}")
+        logger.error(f"Error setting description: {e}")
+        raise
 
 
 @roles_required(["Admin", "Leadership"])
@@ -380,7 +393,8 @@ def set_minimum_threshold(current_user, item_name, new_minimum_threshold):
             "Minimum threshold set to " + str(new_minimum_threshold),
         )
     except (MySQLError, Exception) as e:
-        print(f"An error occurred while setting the new minimum threshold: {e}")
+        logger.error(f"Error setting minimum threshold: {e}")
+        raise
 
 
 @roles_required(["Admin", "Leadership", "General Responder"])
@@ -405,8 +419,7 @@ def show_item(current_user, item_name):
 
         return item_contents
     except (MySQLError, Exception) as e:
-        print(f"An error occurred while retrieving an item: {e}")
-
+        logger.error(f"Error retrieving item: {e}")
         return []
 
 
@@ -433,7 +446,8 @@ def delete_item(current_user, item_name):
 
         audit_log.update_audit_log(current_user, item_name, "DELETE", "Deleted item")
     except (MySQLError, Exception) as e:
-        print(f"An error occurred while deleting item: {e}")
+        logger.error(f"Error deleting item: {e}")
+        raise
 
 
 @roles_required(["Admin", "Leadership", "General Responder"])
@@ -456,6 +470,5 @@ def show_all_inventory(current_user):
 
         return table_contents
     except (MySQLError, Exception) as e:
-        print(f"Database error occurred while retrieving all inventory: {e}")
-
+        logger.error(f"Database error retrieving inventory: {e}")
         return []

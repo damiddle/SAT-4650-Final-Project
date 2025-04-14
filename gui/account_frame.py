@@ -2,6 +2,9 @@ import tkinter as tk
 from tkinter import messagebox, simpledialog, scrolledtext
 import api.users as users
 import utils.validators as validators
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class AccountFrame(tk.Frame):
@@ -66,7 +69,8 @@ class AccountFrame(tk.Frame):
             else:
                 self.account_text.insert(tk.END, "Password was not valid.")
         except Exception as e:
-            messagebox.showerror(f"An error occurred while changing username: {e}")
+            messagebox.showerror("Error", f"Error changing username: {e}")
+            logger.error(f"Error changing username: {e}")
 
     def change_password(self):
         """Prompts the user to change their password after verifying their current password."""
@@ -98,7 +102,8 @@ class AccountFrame(tk.Frame):
             else:
                 self.account_text.insert(tk.END, "Password was not valid.")
         except Exception as e:
-            messagebox.showerror(f"An error occurred while changing password: {e}")
+            messagebox.showerror("Error", f"Error changing password: {e}")
+            logger.error(f"Error changing password: {e}")
 
     def change_email(self):
         """Prompts the user to change their email after verifying their password."""
@@ -131,4 +136,5 @@ class AccountFrame(tk.Frame):
             else:
                 self.account_text.insert(tk.END, "Email was not valid.")
         except Exception as e:
-            messagebox.showerror(f"An error occurred while changing email: {e}")
+            messagebox.showerror("Error", f"Error changing email: {e}")
+            logger.error(f"Error changing email: {e}")

@@ -15,8 +15,11 @@ import db_connection
 import utils.encryption as encryption
 import api.audit_log as audit_log
 import utils.validators as validators
+import logging
 from utils.decorators import roles_required
 from mysql.connector import Error as MySQLError
+
+logger = logging.getLogger(__name__)
 
 
 class CurrentUser:
@@ -85,10 +88,13 @@ def add_user(current_user, target_user, password, role, email):
             )
 
         else:
-            print("User " + target_user + " already exists, please update user instead")
+            logger.info(
+                "User " + target_user + " already exists. Consider updating instead."
+            )
         audit_log.update_audit_log(current_user, target_user, "ADD", "New user added")
     except (MySQLError, Exception) as e:
-        print(f"An error occurred while entering user {e}")
+        logger.error(f"Error adding user: {e}")
+        raise
 
 
 @roles_required(["Admin"])
@@ -121,7 +127,8 @@ def change_user_role(current_user, target_user, new_role):
             current_user, target_user, "UPDATE", "Set user role to " + new_role
         )
     except (MySQLError, Exception) as e:
-        print(f"An error occurred while changing user role: {e}")
+        logger.error(f"Error changing user role: {e}")
+        raise
 
 
 @roles_required(["Admin"])
@@ -147,7 +154,8 @@ def delete_user(current_user, target_user):
 
         audit_log.update_audit_log(current_user, target_user, "DELETE", "Deleted user")
     except (MySQLError, Exception) as e:
-        print(f"An error occurred while deleting user: {e}")
+        logger.error(f"Error deleting user: {e}")
+        raise
 
 
 def login(username, password):
@@ -199,7 +207,7 @@ def login(username, password):
         else:
             return False
     except (MySQLError, Exception) as e:
-        print(f"An error occurred while logging in: {e}")
+        logger.error(f"Error logging in: {e}")
 
         return False
 
@@ -228,7 +236,7 @@ def get_user(username):
 
         return user_list
     except (MySQLError, Exception) as e:
-        print(f"An error occurred while retrieving user: {e}")
+        logger.error(f"Error retrieving user: {e}")
 
         return []
 
@@ -262,7 +270,7 @@ def view_user(current_user, target_user):
 
         return user_list
     except (MySQLError, Exception) as e:
-        print(f"An error occurred while retrieving user data: {e}")
+        logger.error(f"Error viewing user: {e}")
 
         return []
 
@@ -292,10 +300,11 @@ def change_user_password(current_user, new_password):
             current_user,
             current_user.username,
             "UPDATE",
-            "Changed password to " + new_password,
+            "Password changed",
         )
     except (MySQLError, Exception) as e:
-        print(f"An error occurred while changing password: {e}")
+        logger.error(f"Error changing password: {e}")
+        raise
 
 
 def change_user_username(current_user, new_username):
@@ -326,7 +335,8 @@ def change_user_username(current_user, new_username):
             "Changed username to " + new_username,
         )
     except (MySQLError, Exception) as e:
-        print(f"An error occurred while changing username: {e}")
+        logger.error(f"Error changing username: {e}")
+        raise
 
 
 def change_user_email(current_user, new_email):
@@ -357,7 +367,8 @@ def change_user_email(current_user, new_email):
             "Changed email to " + new_email,
         )
     except (MySQLError, Exception) as e:
-        print(f"An error occurred while changing email: {e}")
+        logger.error(f"Error changing email: {e}")
+        raise
 
 
 @roles_required(["Admin"])
@@ -381,6 +392,6 @@ def show_all_users(current_user):
 
         return table_contents
     except (MySQLError, Exception) as e:
-        print(f"Database error: {e}")
+        logger.error(f"Error showing all users: {e}")
 
         return []

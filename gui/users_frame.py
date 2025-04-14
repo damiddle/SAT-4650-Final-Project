@@ -3,6 +3,9 @@ from tkinter import messagebox, simpledialog
 import api.users as users
 import utils.validators as validators
 from gui.scrollable_frame import ScrollableFrame
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class UsersFrame(tk.Frame):
@@ -104,7 +107,8 @@ class UsersFrame(tk.Frame):
             self.refresh_details_button.pack_forget()
             self.return_button.pack_forget()
 
-            messagebox.showerror("Something went wrong, user has no valid role")
+            messagebox.showerror("Error", "User has no valid role")
+            logger.error("User has no valid role")
             self.controller.show_frame("MainMenuFrame")
 
     def refresh_user_list(self):
@@ -117,7 +121,8 @@ class UsersFrame(tk.Frame):
 
             self.populate_user_buttons(self.all_users)
         except Exception as e:
-            messagebox.showerror("Users error", str(e))
+            messagebox.showerror("Error", f"Error refreshing users: {e}")
+            logger.error(f"Error refreshing users: {e}")
 
     def filter_users(self):
         """Filters displayed users based on the search query."""
@@ -158,6 +163,7 @@ class UsersFrame(tk.Frame):
             self.show_user_details(self.selected_user)
         else:
             messagebox.showerror("Error", "No user selected.")
+            logger.error("No user selected")
 
     def show_user_details(self, username):
         """Displays detailed information for a selected user.
@@ -189,7 +195,8 @@ class UsersFrame(tk.Frame):
                 self.user_details_text.insert(tk.END, "No details available.")
             self.user_details_text.config(state="disabled")
         except Exception as e:
-            messagebox.showerror("Error", str(e))
+            messagebox.showerror("Error", f"User detail error: {e}")
+            logging.error(f"User detail error: {e}")
 
     def show_all_users(self):
         """Displays all users' details in the text area."""
@@ -217,11 +224,11 @@ class UsersFrame(tk.Frame):
                 else:
                     self.user_details_text.insert(tk.END, "No users found.")
             except Exception as e:
-                messagebox.showerror(
-                    "An error occurred while retrieving all users: ", str(e)
-                )
+                messagebox.showerror("Error", f"Error retrieving all users: {e}")
+                logger.error(f"Error retrieving all users: {e}")
         else:
             messagebox.showerror("Error", "No current user. Please login again.")
+            logger.error("No current user")
 
     def change_user_role(self):
         """Prompts to change the role of the selected user and updates it."""
@@ -246,11 +253,11 @@ class UsersFrame(tk.Frame):
 
                 self.refresh_user_details()
             except Exception as e:
-                messagebox.showerror(
-                    "An error occurred while updated user role: ", str(e)
-                )
+                messagebox.showerror("Error", f"Error updating user role: {e}")
+                logger.error(f"Error updating user role: {e}")
         else:
             messagebox.showerror("Error", "No current user. Please login again.")
+            logger.error("No current user")
 
     def delete_user(self):
         """Deletes the selected user from the system."""
@@ -270,9 +277,11 @@ class UsersFrame(tk.Frame):
 
                 self.refresh_user_list()
             except Exception as e:
-                messagebox.showerror("User error", str(e))
+                messagebox.showerror("Error", f"Error deleting user: {e}")
+                logging.error(f"Error deleting user: {e}")
         else:
             messagebox.showerror("Error", "No current user. Please login again.")
+            logging.error("No current user")
 
     def add_user(self):
         """Prompts for input and adds a new user."""
@@ -303,6 +312,8 @@ class UsersFrame(tk.Frame):
 
                 self.refresh_user_list()
             except Exception as e:
-                messagebox.showerror("An error occurred while adding user: ", str(e))
+                messagebox.showerror("Error", f"Error adding user: {e}")
+                logger.error(f"Error adding user: {e}")
         else:
             messagebox.showerror("Error", "No current user. Please login again.")
+            logger.error("No current user")

@@ -7,10 +7,13 @@ server (e.g., a debugging SMTP server) based on configuration from the .env file
 
 import smtplib
 from email.message import EmailMessage
-import validators
+import utils.validators as validators
 import os
+import logging
 from dotenv import load_dotenv
-from decorators import roles_required
+from utils.decorators import roles_required
+
+logger = logging.getLogger(__name__)
 
 ENV_FILE_PATH = ".env"
 load_dotenv(ENV_FILE_PATH)
@@ -58,7 +61,9 @@ def send_email_notif(from_email, to_email, message, subject):
             server.send_message(msg)
 
     except smtplib.SMTPException as smtp_err:
-        print(f"SMTP error occurred while sending email: {smtp_err}")
+        logger.error(f"SMTP error sending email: {smtp_err}")
+        raise
 
     except Exception as e:
-        print(f"An error occurred while sending email: {e}")
+        logger.error(f"Error sending email: {e}")
+        raise
