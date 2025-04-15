@@ -38,8 +38,6 @@ The EMS Inventory Management System is a Python-based application that provides 
   Handles data persistence and is managed through the `mysql.connector` package.
 - **cryptography (Fernet)**\
   Provides robust data encryption mechanisms.
-- **smtplib & EmailMessage**\
-  For sending email notifications from the application.
 - **python-dotenv**\
   Manages configuration settings stored in a `.env` file.
 
@@ -72,17 +70,17 @@ OLD_ENCRYPTION_KEY = '2MtGIrXxI1D4AUQG465_U52GNbUFLBfM__nAKgZzhE4='
 ```plaintext
 ├── .env                     # Environment configuration (database, roles, encryption)
 ├── main.py                  # Application entry point for launching the Tkinter GUI
-├── api/					 # Main modules handling database operations
-│	├── users.py             	# User management (authentication, CRUD operations)
-│	├── alerts.py            	# Functionality for checking expired and low inventory items
-│	├── audit_log.py         	# Audit logging for system actions and procedures
-│	└── inventory.py         	# Business logic for inventory operations (add/update/delete items)
+├── api/			# Main modules handling database operations
+│   ├── users.py             	# User management (authentication, CRUD operations)
+│   ├── alerts.py            	# Functionality for checking expired and low inventory items
+│   ├── audit_log.py         	# Audit logging for system actions and procedures
+│   └── inventory.py         	# Business logic for inventory operations (add/update/delete items)
 ├── gui/                     # GUI modules built with Tkinter
 │   ├── app.py               	# Main GUI application class that orchestrates screen navigation
 │   ├── login_frame.py       	# Login screen for user authentication
-│   ├── main_menu_frame.py   	# Primary navigation hub for the application
+│   ├── main_menuframe.py   	# Primary navigation hub for the application
 │   ├── inventory_frame.py   	# Inventory management screen with item details and actions
-│   ├── users_frame.py       	# Screen for managing user accounts
+│   ├── users_frame._py       # Screen for managing user accounts
 │   ├── audit_frame.py       	# View and export audit logs
 │   ├── alert_frame.py       	# Displays inventory alerts for expired or low-stock items
 │   ├── account_frame.py     	# Allows users to update account settings like username, password, and email 
@@ -90,7 +88,7 @@ OLD_ENCRYPTION_KEY = '2MtGIrXxI1D4AUQG465_U52GNbUFLBfM__nAKgZzhE4='
 └── utils/                   # Utility modules for common functionality
     ├── encryption.py        	# Data encryption utilities (shared with root encryption module)
     ├── validators.py        	# Common input validation functions
- 	├── db_connection.py     	# Manages MySQL connections and database initialization
+    ├── db_connection.py     	# Manages MySQL connections and database initialization
     └── decorators.py        	# Role-based access control implementations
 ```
 
