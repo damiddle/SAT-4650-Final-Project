@@ -6,7 +6,7 @@ Provides functions to search for expired inventory items and items with low quan
 
 from utils.decorators import roles_required
 import logging
-import db_connection
+import utils.db_connection as db_connection
 
 logger = logging.getLogger(__name__)
 

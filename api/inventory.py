@@ -11,7 +11,7 @@ import sys
 # Append the parent directory to the system path.
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-import db_connection
+import utils.db_connection as db_connection
 import api.audit_log as audit_log
 import logging
 import utils.validators as validators

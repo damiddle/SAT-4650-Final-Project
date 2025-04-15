@@ -11,7 +11,7 @@ import sys
 # Append the parent directory to the system path for module resolution.
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-import db_connection
+import utils.db_connection as db_connection
 import utils.encryption as encryption
 import api.audit_log as audit_log
 import utils.validators as validators
